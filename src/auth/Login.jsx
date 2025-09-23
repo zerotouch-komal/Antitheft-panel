@@ -91,7 +91,7 @@ export function Login({ config: initialConfig }) {
 const getLogoUrl = () => {
     if (!config?.logo || logoError) return null;
 
-   const baseURL = import.meta.env.VITE_BASE_URL;
+    const baseURL = ' https://app.101ewarranty.com';
     
     // Normalize the path by replacing backslashes with forward slashes
     const normalizedLogo = config.logo.replace(/\\/g, '/');
