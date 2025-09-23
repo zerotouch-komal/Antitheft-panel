@@ -4,9 +4,7 @@ import { getCurrentStoredConfig } from '../utils/configLoader';
 import { authService } from '../services/AuthService';
 import { ChevronLeft, X, MapPin, Clock, Wifi, Shield, Smartphone } from 'lucide-react';
 
-
 const baseURL = import.meta.env.VITE_BASE_URL;
-
 
 const Reports = () => {
   const [config, setConfig] = useState(null);
@@ -20,22 +18,37 @@ const Reports = () => {
   const navigate = useNavigate();
   const mapRef = useRef(null);
 
+const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // If the path already includes the full URL, return as is
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Remove leading slash if present and construct full URL
+    const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
+    return `${baseURL}/${cleanPath}`;
+  };
 
+  // Your existing functions remain the same...
   const getCustomerId = () => {
     const authData = authService.getAuthData();
     const currentUser = authService.getCurrentUser();
     
-    if (currentUser?.id) return currentUser.id;
+    if (currentUser?.id) {
+      return currentUser.id;
+    }
     
     const urlCustomerId = searchParams.get('customerId');
-    if (urlCustomerId) return urlCustomerId;
+    if (urlCustomerId) {
+      return urlCustomerId;
+    }
     
-    return "68c94daf7fe12d1b2e79596e";
   };
 
 
   const customerId = getCustomerId();
-
 
   useEffect(() => {
     const initConfig = () => {
@@ -73,79 +86,94 @@ const Reports = () => {
 
 
   const fetchReports = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${baseURL}/report-list`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ customerId }),
-      });
-
-
-      const result = await response.json();
-      if (result.success) {
-        setReports(result.data);
-        if (result.data.length > 0 && !selectedReport) {
-          fetchReportDetails(result.data[0]._id);
-        }
-      } else {
-        setError('Failed to fetch reports');
+  setLoading(true);
+  setError(null);
+  
+  try {
+    console.log('Fetching reports for customer ID:', customerId);
+    
+    const result = await authService.post('/report-list', { 
+      customerId: customerId 
+    });
+    
+    console.log('Reports response:', result);
+    
+    if (result.success && result.data) {
+      setReports(result.data);
+      
+      if (result.data.length > 0 && !selectedReport) {
+        console.log('Auto-selecting first report:', result.data[0]._id);
+        fetchReportDetails(result.data[0]._id);
       }
-    } catch (err) {
-      setError('Network error occurred');
-      console.error('Error fetching reports:', err);
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.message || 'Failed to fetch reports');
+      setReports([]);
     }
-  };
-
+  } catch (err) {
+    console.error('Error fetching reports:', err);
+    setError('Network error occurred while fetching reports');
+    setReports([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchReportDetails = async (reportId) => {
-    setReportLoading(true);
-    try {
-      const response = await fetch(`${baseURL}/particular-report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ reportId }),
-      });
+  if (!reportId) {
+    console.error('reportId is required');
+    setError('Report ID is missing');
+    return;
+  }
 
-
-      const result = await response.json();
-      if (result.success) {
-        setSelectedReport(result.data);
-      } else {
-        setError('Failed to fetch report details');
-      }
-    } catch (err) {
-      setError('Network error occurred');
-      console.error('Error fetching report details:', err);
-    } finally {
-      setReportLoading(false);
+  setReportLoading(true);
+  setError(null);
+  
+  try {
+    console.log('Fetching report details for ID:', reportId);
+    
+    const result = await authService.post('/particular-report', { 
+      reportId: reportId
+    });
+    
+    console.log('Report details response:', result);
+    
+    if (result.success) {
+      setSelectedReport(result.data);
+    } else {
+      setError(result.message || 'Failed to fetch report details');
     }
-  };
+  } catch (err) {
+    console.error('Error fetching report details:', err);
+    setError('Network error occurred while fetching report details');
+  } finally {
+    setReportLoading(false);
+  }
+};
 
+const formatTriggerSource = (triggerSource) => {
+  switch (triggerSource) {
+    case 'pocket_detection':
+      return 'Pocket Detection';
+    case 'report_capture':
+      return 'Report Capture';
+    default:
+      return triggerSource.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+};
 
   const handlePrint = () => {
     window.print();
   };
-
 
   const navigateToGoogleMaps = (lat, lng) => {
     const url = `https://www.google.com/maps?q=${lat},${lng}`;
     window.open(url, '_blank');
   };
 
-
   const getGoogleMapEmbedUrl = (lat, lng) => {
     if (!lat || !lng) return '';
     return `https://maps.google.com/maps?q=${lat},${lng}&t=m&z=15&output=embed&iwloc=addr&language=en`;
   };
-
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -158,7 +186,6 @@ const Reports = () => {
     };
     return date.toLocaleDateString('en-US', options).replace(',', ' -');
   };
-
 
   const getTriggerSourceColor = (source) => {
     const colors = config?.theme?.colours || {};
@@ -174,7 +201,6 @@ const Reports = () => {
     }
   };
 
-
   const getTriggerSourceLabel = (source) => {
     switch (source) {
       case 'report_capture':
@@ -188,12 +214,10 @@ const Reports = () => {
     }
   };
 
-
   const generateReportNumber = (id) => {
     return `#${id.slice(-8).toUpperCase()}`;
   };
 
-  // Filter function to remove hidden networks
   const filterVisibleNetworks = (networks) => {
     if (!networks || !Array.isArray(networks)) return [];
     return networks.filter(network => 
@@ -204,7 +228,6 @@ const Reports = () => {
     );
   };
 
-
   if (!config) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: config?.theme?.colours?.bgColour || '#f9fafb' }}>
@@ -213,9 +236,7 @@ const Reports = () => {
     );
   }
 
-
   const colours = config?.theme?.colours || {};
-
 
   const SidebarContent = ({ isMobile = false }) => (
     <>
@@ -238,9 +259,9 @@ const Reports = () => {
         <h3 className="font-semibold" style={{ color: colours.textPrimary }}>
           {selectedReport?.report?.customerId ? selectedReport.customer?.name || selectedReport.customer?.deviceInfo?.brand : 'Device Reports'}
         </h3>
-        <p className="text-sm mt-1" style={{ color: colours.textSecondary }}>
+        {/* <p className="text-sm mt-1" style={{ color: colours.textSecondary }}>
           {reports.length} of {reports.length} - {Math.max(18 - reports.length, 0)} slots available
-        </p>
+        </p> */}
       </div>
       
       <div className="flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
@@ -256,63 +277,52 @@ const Reports = () => {
         ) : (
           <div className="divide-y" style={{ borderColor: colours.secondaryCard }}>
             {reports.map((report, index) => (
-              <div
-                key={report._id}
-                className={`p-4 cursor-pointer transition-all duration-200 ${
-                  selectedReport?.report?._id === report._id 
-                    ? 'border-l-4 shadow-sm' 
-                    : 'hover:border-l-4 hover:border-transparent'
-                }`}
-                style={{
-                  borderLeftColor: selectedReport?.report?._id === report._id ? colours.primaryColour : undefined,
-                  backgroundColor: selectedReport?.report?._id === report._id 
-                    ? `${colours.primaryColour}15`
-                    : undefined,
-                  boxShadow: selectedReport?.report?._id === report._id 
-                    ? `inset 3px 0 0 ${colours.primaryColour}, 0 2px 4px rgba(0,0,0,0.05)` 
-                    : undefined,
-                  transform: selectedReport?.report?._id === report._id ? 'translateX(2px)' : undefined,
-                  transition: 'all 0.2s ease-in-out'
-                }}
-                onMouseEnter={(e) => {
-                  if (selectedReport?.report?._id !== report._id) {
-                    e.currentTarget.style.backgroundColor = colours.primaryCard;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedReport?.report?._id !== report._id) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }
-                }}
-                onClick={() => fetchReportDetails(report._id)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: colours.primaryColour }}>
-                    <Smartphone className="w-5 h-5" style={{ color: colours.bgColour }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm" style={{ color: colours.textPrimary }}>
-                      {generateReportNumber(report._id)}
-                    </h4>
-                    <p className="text-xs mt-1" style={{ color: colours.textSecondary }}>
-                      Created at:
-                    </p>
-                    <p className="text-xs font-medium" style={{ color: colours.textPrimary }}>
-                      {formatDate(report.createdAt)}
-                    </p>
-                    <div className="mt-2">
-                      <span 
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
-                        style={{ backgroundColor: getTriggerSourceColor(report.triggerSource), color: colours.bgColour }}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: colours.bgColour }}></span>
-                        {getTriggerSourceLabel(report.triggerSource)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+  <div
+    key={report._id}
+    className="p-4 cursor-pointer transition-all duration-200 border-b border-gray-700 hover:bg-gray-800"
+    style={{
+      backgroundColor: selectedReport?._id === report._id ? colours?.primary : 'transparent'
+    }}
+    onClick={() => {
+      console.log('Selected report ID:', report._id);
+      if (report._id) {
+        fetchReportDetails(report._id);
+      } else {
+        console.error('Report ID is missing:', report);
+        setError('Invalid report selected');
+      }
+    }}
+  >
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-sm font-medium text-white">
+          Report #{index + 1}
+        </div>
+        <div className="text-xs text-gray-400 mt-1">
+          {new Date(report.createdAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </div>
+        <div className="text-xs text-gray-300 mt-1">
+          Source: {report.triggerSource.replace('_', ' ').toUpperCase()}
+        </div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <div 
+          className={`w-3 h-3 rounded-full ${
+            report.triggerSource === 'pocket_detection' 
+              ? 'bg-yellow-500' 
+              : 'bg-blue-500'
+          }`}
+        />
+      </div>
+    </div>
+  </div>
+))}
           </div>
         )}
       </div>
@@ -330,7 +340,6 @@ const Reports = () => {
       )}
     </>
   );
-
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: colours.bgColour || '#f9fafb' }}>
@@ -353,13 +362,11 @@ const Reports = () => {
               </div>
             </div>
 
-
             {error && (
               <div className="mb-4 p-4 rounded-lg border border-red-200 bg-red-50 text-red-600">
                 <p>{error}</p>
               </div>
             )}
-
 
             {reportLoading ? (
               <div className="rounded-xl shadow-sm p-8 text-center" style={{ backgroundColor: colours.sideBg }}>
@@ -368,7 +375,6 @@ const Reports = () => {
               </div>
             ) : selectedReport ? (
               <div className="space-y-6">
-                {/* Header Card */}
                 <div className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colours.primaryCard }}>
                   <div className="px-6 py-4" style={{ background: `linear-gradient(135deg, ${colours.primaryColour} 0%, ${colours.secondaryColour} 100%)` }}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -415,8 +421,6 @@ const Reports = () => {
                   </div>
                 </div>
 
-
-                {/* Location Information Card */}
                 <div className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colours.primaryCard }}>
                   <div className="p-6">
                     <div className="flex items-center gap-2 mb-4">
@@ -498,8 +502,83 @@ const Reports = () => {
                   </div>
                 </div>
 
+                {(selectedReport.report.frontPhoto || selectedReport.report.backPhoto) && (
+  <div className="rounded-xl shadow-sm overflow-hidden" style={{ backgroundColor: colours.primaryCard }}>
+    <div className="p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <svg className="w-5 h-5" style={{ color: colours.primaryColour }} fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+        </svg>
+        <h3 className="text-lg font-semibold" style={{ color: colours.textPrimary }}>
+          Captured Photos
+        </h3>
+      </div>
+      
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Front Photo */}
+                        {selectedReport.report.frontPhoto && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" style={{ color: colours.textSecondary }}>Front Photo</label>
+                            <div className="rounded-lg overflow-hidden shadow-sm">
+                              <img 
+                                src={getImageUrl(selectedReport.report.frontPhoto)} 
+                                alt="Front Photo" 
+                                className="w-full h-64 object-cover"
+                                onError={(e) => {
+                                  console.error('Failed to load front photo:', getImageUrl(selectedReport.report.frontPhoto));
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div 
+                                className="w-full h-64 flex items-center justify-center bg-gray-100 text-gray-500" 
+                                style={{ display: 'none', backgroundColor: colours.secondaryCard }}
+                              >
+                                <div className="text-center">
+                                  <svg className="w-12 h-12 mx-auto mb-2" style={{ color: colours.textSecondary }} fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                  </svg>
+                                  <p className="text-sm" style={{ color: colours.textSecondary }}>Image not available</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
-                {/* Device Information Card */}
+                        {/* Back Photo */}
+                        {selectedReport.report.backPhoto && (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium" style={{ color: colours.textSecondary }}>Back Photo</label>
+                            <div className="rounded-lg overflow-hidden shadow-sm">
+                              <img 
+                                src={getImageUrl(selectedReport.report.backPhoto)} 
+                                alt="Back Photo" 
+                                className="w-full h-64 object-cover"
+                                onError={(e) => {
+                                  console.error('Failed to load back photo:', getImageUrl(selectedReport.report.backPhoto));
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div 
+                                className="w-full h-64 flex items-center justify-center bg-gray-100 text-gray-500" 
+                                style={{ display: 'none', backgroundColor: colours.secondaryCard }}
+                              >
+                                <div className="text-center">
+                                  <svg className="w-12 h-12 mx-auto mb-2" style={{ color: colours.textSecondary }} fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                  </svg>
+                                  <p className="text-sm" style={{ color: colours.textSecondary }}>Image not available</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-xl shadow-sm p-6" style={{ backgroundColor: colours.primaryCard }}>
                   <div className="flex items-center gap-2 mb-4">
                     <Smartphone className="w-5 h-5" style={{ color: colours.primaryColour }} />
@@ -735,7 +814,7 @@ const Reports = () => {
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden transition-opacity duration-300" 
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

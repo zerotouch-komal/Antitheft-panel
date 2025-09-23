@@ -620,7 +620,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <span className="font-medium">
               {isLoggingOut ? 'Signing Out...' : 'Logout'}
             </span>
-            <ChevronRight size={16} className="ml-auto" style={{ color: textSecondary }} />
+            <ChevronRight s ize={16} className="ml-auto" style={{ color: textSecondary }} />
           </button>
         </div>
       </div>

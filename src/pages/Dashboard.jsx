@@ -53,77 +53,54 @@ export function Dashboard() {
   }, [currentUser]);
 
   const sendDeviceCommand = useCallback(async (action) => {
-    try {
-      const deviceToken = getDeviceToken();
-      
-      const response = await fetch(`${baseURL}/send-device-command`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authData?.token}`
-        },
-        body: JSON.stringify({
-          token: deviceToken,
-          action: action
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to send ${action} command`);
-      }
-      
-      const commandResponse = await response.json();
-      console.log(`${action} command response:`, commandResponse);
-      return commandResponse;
-      
-    } catch (error) {
-      console.error(`Error sending ${action} command:`, error);
-      throw error;
-    }
-  }, [baseURL, authData?.token, getDeviceToken]);
+  try {
+    const deviceToken = getDeviceToken();
+    
+    // Use authService.post instead of fetch
+    const commandResponse = await authService.post('/send-device-command', {
+      token: deviceToken,
+      action: action
+    });
+    
+    console.log(`${action} command response:`, commandResponse);
+    return commandResponse;
+  } catch (error) {
+    console.error(`Error sending ${action} command:`, error);
+    throw error;
+  }
+}, [getDeviceToken]);
 
-  const fetchUserLocation = async () => {
-    try {
-      setIsLoadingLocation(true);
-      setLocationError(null);
-      
-      const response = await fetch(`${baseURL}/dashboard`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authData?.token}`
-        },
-        body: JSON.stringify({
-          customerId: currentUser?.id
-        })
+const fetchUserLocation = async () => {
+  try {
+    setIsLoadingLocation(true);
+    setLocationError(null);
+    
+    // Use authService.post instead of fetch
+    const responseData = await authService.post('/dashboard', {
+      customerId: currentUser?.id
+    });
+    
+    console.log('Dashboard response:', responseData);
+    
+    if (responseData.success && responseData.data?.location) {
+      const location = responseData.data.location;
+      setUserLocation({
+        lat: parseFloat(location.latitude),
+        lng: parseFloat(location.longitude),
+        lastUpdated: location.lastUpdated
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch location');
-      }
-      
-      const responseData = await response.json();
-      console.log('Dashboard response:', responseData);
-      
-      if (responseData.success && responseData.data?.location) {
-        const location = responseData.data.location;
-        setUserLocation({
-          lat: parseFloat(location.latitude),
-          lng: parseFloat(location.longitude),
-          lastUpdated: location.lastUpdated
-        });
-        setLastUpdated(new Date(location.lastUpdated).toLocaleString());
-      } else {
-        throw new Error('No location data available in response');
-      }
-    } catch (error) {
-      console.error('Error fetching location:', error);
-      setLocationError(error.message);
-      setUserLocation(null);
-    } finally {
-      setIsLoadingLocation(false);
+      setLastUpdated(new Date(location.lastUpdated).toLocaleString());
+    } else {
+      throw new Error('No location data available in response');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching location:', error);
+    setLocationError(error.message);
+    setUserLocation(null);
+  } finally {
+    setIsLoadingLocation(false);
+  }
+};
 
   const updateLocation = async () => {
     try {
