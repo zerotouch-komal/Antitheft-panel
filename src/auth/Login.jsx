@@ -91,7 +91,7 @@ export function Login({ config: initialConfig }) {
 const getLogoUrl = () => {
     if (!config?.logo || logoError) return null;
 
-    const baseURL = 'http://192.168.1.113:3000';
+   const baseURL = import.meta.env.VITE_BASE_URL;
     
     // Normalize the path by replacing backslashes with forward slashes
     const normalizedLogo = config.logo.replace(/\\/g, '/');
