@@ -87,7 +87,7 @@ export async function fetchConfigFromAPI() {
   
   try {
     console.log("Fetching fresh config from API...");
-    const apiUrl = `https://app.101ewarranty.com/api/companies/config`;
+    const apiUrl = `http://192.168.1.113:3000/api/companies/config`;
     console.log("API URL:", apiUrl);
     
     const res = await fetch(apiUrl, {

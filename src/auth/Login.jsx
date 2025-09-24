@@ -91,28 +91,23 @@ export function Login({ config: initialConfig }) {
 const getLogoUrl = () => {
     if (!config?.logo || logoError) return null;
 
-    const baseURL = ' https://app.101ewarranty.com';
+    const baseURL = ' http://192.168.1.113:3000';
     
-    // Normalize the path by replacing backslashes with forward slashes
     const normalizedLogo = config.logo.replace(/\\/g, '/');
     
-    // If it's already a full URL
     if (normalizedLogo.startsWith('http://') || normalizedLogo.startsWith('https://')) {
       return `${baseURL}/api/proxy/image?url=${encodeURIComponent(normalizedLogo)}`;
     }
     
-    // Handle public/ paths
     if (normalizedLogo.startsWith('public/')) {
       const logoPath = normalizedLogo.replace('public/', '');
       return `${baseURL}/public/${logoPath}`;
     }
     
-    // Handle paths starting with /
     if (normalizedLogo.startsWith('/')) {
       return `${baseURL}/public${normalizedLogo}`;
     }
     
-    // Default case - assume it's a relative path that should be in public
     return `${baseURL}/public/${normalizedLogo}`;
   };
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { authService } from '../services/AuthService';
 import { loadConfig, getCurrentStoredConfig } from '../utils/configLoader';
-import { Plus, Smartphone, Settings, Shield, HelpCircle, X, MapPin, FileText, Clock, HardDrive, Menu, AlertTriangle, ChevronRight, LogOut, RefreshCw} from 'lucide-react';
+import { Smartphone, Shield, X, MapPin, FileText, Menu, AlertTriangle, ChevronRight, LogOut, RefreshCw} from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
@@ -14,8 +14,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const [isProcessingMissing, setIsProcessingMissing] = useState(false);
   const [reportMinutes, setReportMinutes] = useState(15);
   const [errorMessage, setErrorMessage] = useState('');
-  
-  // Add dashboard-like location state
+  const [logoError, setLogoError] = useState(false);
+
   const [userLocation, setUserLocation] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [locationError, setLocationError] = useState(null);
@@ -23,13 +23,56 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
+const getLogoUrl = () => {
+  if (!config?.logo || logoError) return null;
+
+  const baseURL = 'http://192.168.1.113:3000';
+  
+  const normalizedLogo = config.logo.replace(/\\/g, '/');
+  
+  console.log("Original logo path:", config.logo);
+  console.log("Normalized logo path:", normalizedLogo);
+  
+  if (normalizedLogo.startsWith('http://') || normalizedLogo.startsWith('https://')) {
+    return `${baseURL}/api/proxy/image?url=${encodeURIComponent(normalizedLogo)}`;
+  }
+  
+  if (normalizedLogo.startsWith('public/')) {
+    const logoPath = normalizedLogo.replace('public/', '');
+    const finalUrl = `${baseURL}/public/${logoPath}`;
+    console.log("Final logo URL:", finalUrl);
+    return finalUrl;
+  }
+  
+  if (normalizedLogo.startsWith('/')) {
+    const finalUrl = `${baseURL}/public${normalizedLogo}`;
+    console.log("Final logo URL:", finalUrl);
+    return finalUrl;
+  }
+  
+  const finalUrl = `${baseURL}/public/${normalizedLogo}`;
+  console.log("Final logo URL:", finalUrl);
+  return finalUrl;
+};
+
+  const handleLogoError = () => {
+    console.warn("Logo failed to load, falling back to icon");
+    console.warn("Attempted logo URL:", getLogoUrl());
+    setLogoError(true);
+  };
+
   useEffect(() => {
     const initConfig = async () => {
       try {
         const loadedConfig = await loadConfig();
+        console.log("Config loaded:", loadedConfig);
+        console.log("Logo URL:", loadedConfig?.logo);
         setConfig(loadedConfig);
       } catch (error) {
+        console.error("Config loading error:", error);
         const storedConfig = getCurrentStoredConfig();
+        console.log("Using stored config:", storedConfig);
+        console.log("Stored logo URL:", storedConfig?.logo);
         setConfig(storedConfig);
       }
     };
@@ -46,7 +89,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     loadUserData();
   }, []);
 
-  // Add dashboard-like location fetching
   const fetchUserLocation = async () => {
     try {
       setIsLoadingLocation(true);
@@ -94,7 +136,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     }
   };
 
-  // Initialize location fetching on component mount
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     if (currentUser?.id) {
@@ -109,6 +150,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   const secondaryColor = colors.secondaryColour || '#1d4ed8';
   const textPrimary = colors.textPrimary === '#000' ? '#f8fafc' : colors.textPrimary || '#f8fafc';
   const textSecondary = colors.textSecondary === '#fff' ? '#94a3b8' : colors.textSecondary || '#94a3b8';
+  const logoUrl = getLogoUrl();
+  const displayName = config?.displayName || "101 Antitheft";
+
+  console.log("Config logo:", config?.logo);
+  console.log("Generated logo URL:", logoUrl);
 
   const handleMarkAsMissing = async () => {
     try {
@@ -200,11 +246,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   };
 
   const topMenuItems = [
-    // Menu items remain the same
   ];
 
   const deviceMenuItems = [
-    // Menu items remain the same
   ];
 
   const bottomMenuItems = [
@@ -237,7 +281,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     return model || brand || 'Unknown Device';
   };
 
-  // Updated getDeviceStatus function that uses real location data
   const getDeviceStatus = () => {
     if (isLoadingLocation) {
       return {
@@ -255,7 +298,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       };
     }
 
-    // Parse the lastUpdated date to match dashboard format
     const lastUpdateDate = new Date(lastUpdated);
     const today = new Date();
     const isToday = lastUpdateDate.toDateString() === today.toDateString();
@@ -331,46 +373,38 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <div className="flex-shrink-0 relative p-6 border-b border-white/10">
           <div className="flex items-center justify-between">
-           <div className="flex items-center space-x-3">
-              {config?.logo ? (
-                <div className="flex-shrink-0">
-                  <img 
-                    src={config.logo} 
-                    alt="App Logo"
-                    className="w-10 h-10 object-contain rounded-lg"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                  />
+            <div className="flex justify-center w-full">
+                {logoUrl && !logoError ? (
+                  <div className="flex-shrink-0">
+                    <img 
+                      src={logoUrl} 
+                      alt={displayName}
+                      className="w-35 h-35 object-contain rounded-lg"
+                      onLoad={() => {
+                        console.log("✅ Logo loaded successfully:", logoUrl);
+                      }}
+                      onError={(e) => {
+                        console.error("❌ Logo failed to load:", logoUrl);
+                        console.error("Error details:", e);
+                        handleLogoError();
+                      }}
+                      crossOrigin="anonymous"
+                    />
+                  </div>
+                ) : (
                   <div 
-                    className="p-2 rounded-xl shadow-lg hidden"
+                    className="p-2 rounded-xl shadow-lg"
                     style={{
                       background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
                     }}
                   >
-                    <Shield className="w-6 h-6 text-white" />
+                    <Shield className="w-8 h-8 text-white" />
                   </div>
-                </div>
-              ) : (
-                <div 
-                  className="p-2 rounded-xl shadow-lg"
-                  style={{
-                    background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
-                  }}
-                >
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-bold tracking-tight" style={{ color: textPrimary }}>
-                  {config?.displayName || "101 Antitheft"}
-                </h1>
-              </div>
+                )}
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="lg:hidden p-2 rounded-lg hover:bg-white/10 transition-all duration-200"
+              className="lg:hidden absolute right-0 top-1/2 transform -translate-y-1/2 p-2 rounded-lg hover:bg-white/10 transition-all duration-200"
               style={{ color: textSecondary }}
             >
               <X className="w-5 h-5" />

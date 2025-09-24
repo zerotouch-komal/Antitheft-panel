@@ -280,7 +280,7 @@ const fetchUserLocation = async () => {
         <ActionButtons />
         <StatusInfo />
       </div>
-      {isMobile && (
+      {/* {isMobile && (
         <div className="p-6 border-t" style={{ borderColor: colours.tertiaryColour || '#34495E' }}>
           <button
             onClick={() => navigate(-1)}
@@ -291,7 +291,7 @@ const fetchUserLocation = async () => {
             <span style={{ color: colours.textSecondary || 'white' }}>Back</span>
           </button>
         </div>
-      )}
+      )} */}
     </>
   );
 
