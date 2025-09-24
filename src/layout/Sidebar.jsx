@@ -26,7 +26,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 const getLogoUrl = () => {
   if (!config?.logo || logoError) return null;
 
-  const baseURL = 'http://192.168.1.113:3000';
+  const baseURL = 'https://app.101ewarranty.com';
   
   const normalizedLogo = config.logo.replace(/\\/g, '/');
   
