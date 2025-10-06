@@ -9,7 +9,6 @@ export function Dashboard() {
   const authData = authService.getAuthData();
   const currentUser = authService.getCurrentUser();
   
-  // State for config
   const [config, setConfig] = useState(getCurrentStoredConfig());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   
@@ -26,7 +25,6 @@ export function Dashboard() {
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
-  // Function to refresh configuration from API
   const refreshConfigFromAPI = useCallback(async () => {
     try {
       setIsLoadingConfig(true);
@@ -38,7 +36,6 @@ export function Dashboard() {
       
     } catch (error) {
       console.error('Error refreshing config:', error);
-      // Keep the existing config if refresh fails
     } finally {
       setIsLoadingConfig(false);
     }
@@ -56,34 +53,40 @@ export function Dashboard() {
   try {
     const deviceToken = getDeviceToken();
     
-    // Use authService.post instead of fetch
-    const commandResponse = await authService.post('/send-device-command', {
+    console.log(`[Route Call] POST api/antitheft/send-device-command`);
+    console.log(`[Request Data] Action: ${action}, Token: ${deviceToken.substring(0, 10)}...`);
+    
+    const commandResponse = await authService.post('/api/antitheft/send-device-command', {
       token: deviceToken,
       action: action
     });
     
-    console.log(`${action} command response:`, commandResponse);
+    console.log(`[Response] ${action} command response:`, commandResponse);
     return commandResponse;
   } catch (error) {
-    console.error(`Error sending ${action} command:`, error);
+    console.error(`[Error] sending ${action} command:`, error);
     throw error;
   }
 }, [getDeviceToken]);
+
 
 const fetchUserLocation = async () => {
   try {
     setIsLoadingLocation(true);
     setLocationError(null);
     
-    // Use authService.post instead of fetch
-    const responseData = await authService.post('/dashboard', {
-      customerId: currentUser?.id
+    console.log(`[Route Call] POST api/antitheft/dashboard`);
+    console.log(`[Request Data] Customer ID: ${currentUser?.antitheftKey}`);
+    
+    const responseData = await authService.post('/api/antitheft/dashboard', {
+      antitheftKey: currentUser?.antitheftKey
     });
     
-    console.log('Dashboard response:', responseData);
+    console.log('[Response] Dashboard response:', responseData);
     
     if (responseData.success && responseData.data?.location) {
       const location = responseData.data.location;
+      console.log('[Location Data] Latitude:', location.latitude, 'Longitude:', location.longitude);
       setUserLocation({
         lat: parseFloat(location.latitude),
         lng: parseFloat(location.longitude),
@@ -94,7 +97,7 @@ const fetchUserLocation = async () => {
       throw new Error('No location data available in response');
     }
   } catch (error) {
-    console.error('Error fetching location:', error);
+    console.error('[Error] fetching location:', error);
     setLocationError(error.message);
     setUserLocation(null);
   } finally {
@@ -102,21 +105,25 @@ const fetchUserLocation = async () => {
   }
 };
 
-  const updateLocation = async () => {
-    try {
-      setIsUpdatingLocation(true);
-      await sendDeviceCommand("UPDATE_LOCATION");
-      
-      setTimeout(async () => {
-        await fetchUserLocation();
-      }, 2000);
-      
-    } catch (error) {
-      setLocationError(error.message);
-    } finally {
-      setIsUpdatingLocation(false);
-    }
-  };
+
+const updateLocation = async () => {
+  try {
+    setIsUpdatingLocation(true);
+    console.log('[Action] Updating location - sending UPDATE_LOCATION command');
+    await sendDeviceCommand("UPDATE_LOCATION");
+    
+    console.log('[Action] Waiting 2 seconds before fetching updated location...');
+    setTimeout(async () => {
+      await fetchUserLocation();
+    }, 2000);
+    
+  } catch (error) {
+    console.error('[Error] updating location:', error);
+    setLocationError(error.message);
+  } finally {
+    setIsUpdatingLocation(false);
+  }
+};
 
   const handleRemoteAlarm = async () => {
     try {
@@ -144,20 +151,19 @@ const fetchUserLocation = async () => {
     }
   };
 
-  // Effect to refresh config and fetch location on component mount
   useEffect(() => {
     const initializeDashboard = async () => {
-      // Refresh config first
       await refreshConfigFromAPI();
+      console.log(currentUser);
       
-      // Then fetch location if user ID is available
-      if (currentUser?.id) {
+      
+      if (currentUser?.antitheftKey) {
         await fetchUserLocation();
       }
     };
 
     initializeDashboard();
-  }, [currentUser?.id, refreshConfigFromAPI]);
+  }, [currentUser?.antitheftKey, refreshConfigFromAPI]);
 
   const hasValidLocation = userLocation && userLocation.lat && userLocation.lng;
 
@@ -295,7 +301,6 @@ const fetchUserLocation = async () => {
     </>
   );
 
-  // Add loading indicator if both config and location are loading
   if (isLoadingConfig && isLoadingLocation) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour || '#f5f5f5' }}>
@@ -318,26 +323,42 @@ const fetchUserLocation = async () => {
             </div>
           </div>
         ) : locationError ? (
-          <div className="w-full h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour }}>
-            <div className="text-center">
-              <div className="mb-4">
-                <MapPin className="w-12 h-12 mx-auto mb-2" style={{ color: colours.primaryColour }} />
-                <p className="text-lg font-semibold mb-2" style={{ color: colours.textPrimary }}>
-                  Location Not Available
-                </p>
-                <p className="text-sm mb-4" style={{ color: colours.textPrimary }}>
-                  {locationError}
-                </p>
-                <button
-                  onClick={fetchUserLocation}
-                  className="px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          </div>
+  <div className="w-full h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour }}>
+    <div className="text-center">
+      <div className="mb-4">
+        <MapPin className="w-12 h-12 mx-auto mb-2" style={{ color: colours.primaryColour }} />
+        <p className="text-lg font-semibold mb-2" style={{ color: colours.textPrimary }}>
+          Location Not Available
+        </p>
+        <p className="text-sm mb-4" style={{ color: colours.textPrimary }}>
+          {locationError}
+        </p>
+        <div className="space-y-2">
+          <button
+            onClick={fetchUserLocation}
+            className="px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={updateLocation}
+            disabled={isUpdatingLocation}
+            className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mx-auto"
+            style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+          >
+            {isUpdatingLocation ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <MapPin className="w-4 h-4" />
+            )}
+            {isUpdatingLocation ? 'Requesting update...' : 'Update location'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
         ) : hasValidLocation ? (
           <>
             <iframe

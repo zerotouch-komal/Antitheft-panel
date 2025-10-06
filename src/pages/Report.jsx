@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCurrentStoredConfig } from '../utils/configLoader';
 import { authService } from '../services/AuthService';
 import { ChevronLeft, X, MapPin, Clock, Wifi, Shield, Smartphone, Menu } from 'lucide-react';
+
 const baseURL = import.meta.env.VITE_BASE_URL;
 
 const Reports = () => {
@@ -29,22 +30,22 @@ const Reports = () => {
     return `${baseURL}/${cleanPath}`;
   };
 
-  const getCustomerId = () => {
+  const getantitheftKey = () => {
     const authData = authService.getAuthData();
     const currentUser = authService.getCurrentUser();
 
-    if (currentUser?.id) {
-      return currentUser.id;
+    if (currentUser?.antitheftKey) {
+      return currentUser.antitheftKey;
     }
 
-    const urlCustomerId = searchParams.get('customerId');
-    if (urlCustomerId) {
-      return urlCustomerId;
+    const urlantitheftKey = searchParams.get('antitheftKey');
+    if (urlantitheftKey) {
+      return urlantitheftKey;
     }
 
   };
 
-  const customerId = getCustomerId();
+  const antitheftKey = getantitheftKey();
 
   useEffect(() => {
     const initConfig = () => {
@@ -74,77 +75,103 @@ const Reports = () => {
   }, []);
 
   useEffect(() => {
-    if (customerId) {
+    console.log("hxzfjklbdrs jm,gbdrtf ",antitheftKey);
+    
+    if (antitheftKey) {
       fetchReports();
     }
-  }, [customerId]);
+  }, [antitheftKey]);
 
   const fetchReports = async () => {
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    try {
-      console.log('Fetching reports for customer ID:', customerId);
+  try {
+    console.log('=== API CALL START: /api/antitheft/report-list ===');
+    console.log('Request payload:', { antitheftKey: antitheftKey });
+    console.log('Fetching reports for customer ID:', antitheftKey);
 
-      const result = await authService.post('/report-list', { 
-        customerId: customerId 
-      });
+    const result = await authService.post('/api/antitheft/report-list', { 
+      antitheftKey: antitheftKey 
+    });
 
-      console.log('Reports response:', result);
+    console.log('=== API CALL COMPLETE: /api/antitheft/report-list ===');
+    console.log('Response status:', result.success);
+    console.log('Resjkjkponse data:', result.data);
+    console.log('Reports response:', result);
 
-      if (result.success && result.data) {
-        setReports(result.data);
+    if (result.success && result.data) {
+      console.log(`✓ Successfully fetched ${result.data.length} reports`);
+      setReports(result.data);
 
-        if (result.data.length > 0 && !selectedReport) {
-          console.log('Auto-selecting first report:', result.data[0]._id);
-          fetchReportDetails(result.data[0]._id);
-        }
-      } else {
-        setError(result.message || 'Failed to fetch reports');
-        setReports([]);
+      if (result.data.length > 0 && !selectedReport) {
+        console.log('Auto-selecting first report:', result.data[0]._id);
+        fetchReportDetails(result.data[0]._id);
       }
-    } catch (err) {
-      console.error('Error fetching reports:', err);
-      setError('Network error occurred while fetching reports');
+    } else {
+      console.error('✗ Failed to fetch reports:', result.message);
+      setError(result.message || 'Failed to fetch reports');
       setReports([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('=== API CALL ERROR: /api/antitheft/report-list ===');
+    console.error('Error details:', err);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    setError('Network error occurred while fetching reports');
+    setReports([]);
+  } finally {
+    setLoading(false);
+    console.log('=== API CALL END: /api/antitheft/report-list ===\n');
+  }
+};
 
-  const fetchReportDetails = async (reportId) => {
-    if (!reportId) {
-      console.error('reportId is required');
-      setError('Report ID is missing');
-      return;
-    }
-    setReportLoading(true);
-    setError(null);
+const fetchReportDetails = async (reportId) => {
+  if (!reportId) {
+    console.error('✗ reportId is required but not provided');
+    setError('Report ID is missing');
+    return;
+  }
+  setReportLoading(true);
+  setError(null);
 
-    try {
-      console.log('Fetching report details for ID:', reportId);
+  try {
+    console.log('=== API CALL START: /api/antitheft/particular-report ===');
+    console.log('Request payload:', { reportId: reportId });
+    console.log('Fetching report details for ID:', reportId);
 
-      const result = await authService.post('/particular-report', { 
-        reportId: reportId
-      });
+    const result = await authService.post('/api/antitheft/particular-report', { 
+      reportId: reportId
+    });
 
-      console.log('Report details response:', result);
+    console.log('=== API CALL COMPLETE: /api/antitheft/particular-report ===');
+    console.log('Response status:', result.success);
+    console.log('Response data:', result.data);
+    console.log('Report details response:', result);
 
-      if (result.success) {
-        setSelectedReport(result.data);
-        if (window.innerWidth < 1024) {
-          setIsSidebarOpen(false);
-        }
-      } else {
-        setError(result.message || 'Failed to fetch report details');
+    if (result.success) {
+      console.log('✓ Successfully fetched report details');
+      console.log('Selected report ID:', result.data._id);
+      setSelectedReport(result.data);
+      if (window.innerWidth < 1024) {
+        console.log('Mobile view detected - closing sidebar');
+        setIsSidebarOpen(false);
       }
-    } catch (err) {
-      console.error('Error fetching report details:', err);
-      setError('Network error occurred while fetching report details');
-    } finally {
-      setReportLoading(false);
+    } else {
+      console.error('✗ Failed to fetch report details:', result.message);
+      setError(result.message || 'Failed to fetch report details');
     }
-  };
+  } catch (err) {
+    console.error('=== API CALL ERROR: /api/antitheft/particular-report ===');
+    console.error('Error details:', err);
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    setError('Network error occurred while fetching report details');
+  } finally {
+    setReportLoading(false);
+    console.log('=== API CALL END: /api/antitheft/particular-report ===\n');
+  }
+};
 
   const handlePrint = () => {
     window.print();
@@ -267,7 +294,7 @@ const Reports = () => {
 
       <div className="p-4 border-b flex-shrink-0" style={{ borderColor: colours.primaryCard }}>
         <h3 className="font-semibold text-sm sm:text-base truncate" style={{ color: colours.textPrimary }}>
-          {selectedReport?.report?.customerId ? selectedReport.customer?.name || selectedReport.customer?.deviceInfo?.brand : 'Device Reports'}
+          {selectedReport?.report?.antitheftKey ? selectedReport.customer?.name || selectedReport.customer?.deviceInfo?.brand : 'Device Reports'}
         </h3>
       </div>
 
@@ -302,7 +329,7 @@ const Reports = () => {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white truncate">
+                    <div className="text-sm font-medium text-black truncate">
                       Report #{index + 1}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
@@ -314,7 +341,7 @@ const Reports = () => {
                         minute: '2-digit'
                       })}
                     </div>
-                    <div className="text-xs text-gray-300 mt-1 truncate">
+                    <div className="text-xs text-gray-600 mt-1 truncate">
                       Source: {report.triggerSource.replace('_', ' ').toUpperCase()}
                     </div>
                   </div>
@@ -396,7 +423,7 @@ const Reports = () => {
                           Security Report {generateReportNumber(selectedReport.report._id)}
                         </h2>
                         <p className="text-xs sm:text-sm opacity-90 mt-1 truncate">
-                          {selectedReport.customer?.name} • {selectedReport.customer?.deviceInfo?.brand} {selectedReport.customer?.deviceInfo?.model}
+                          {selectedReport.customer?.name} {selectedReport.customer?.deviceInfo?.brand} {selectedReport.customer?.deviceInfo?.model}
                         </p>
                       </div>
                       <div className="w-full flex flex-col sm:flex-row gap-2">

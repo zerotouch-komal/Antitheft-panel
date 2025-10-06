@@ -27,7 +27,6 @@ class ConfigPreferences {
       const stored = localStorage.getItem(`${this.PREFS_NAME}_${this.CONFIG_KEY}`);
       if (stored) {
         const parsedConfig = JSON.parse(stored);
-        console.log("Retrieved config from domain:", parsedConfig.domain);
         return parsedConfig;
       }
     } catch (error) {
@@ -39,7 +38,6 @@ class ConfigPreferences {
   static clearConfig() {
     try {
       localStorage.removeItem(`${this.PREFS_NAME}_${this.CONFIG_KEY}`);
-      console.log("Cleared config");
       return true;
     } catch (error) {
       console.error("Error clearing config:", error);
@@ -78,7 +76,6 @@ export function getFallbackConfig() {
     displayName: "Login",
     logo: "",
   };
-  console.log("Using fallback configuration");
   return fallback;
 }
 
@@ -87,7 +84,7 @@ export async function fetchConfigFromAPI() {
   
   try {
     console.log("Fetching fresh config from API...");
-    const apiUrl = `https://app.101ewarranty.com/api/companies/config`;
+    const apiUrl = `http://192.168.1.108:3001/api/companies/config`;
     console.log("API URL:", apiUrl);
     
     const res = await fetch(apiUrl, {
@@ -111,7 +108,6 @@ export async function fetchConfigFromAPI() {
     
     const json = await res.json();
     if (json.success && json.data) {
-      console.log("Successfully fetched config from API:", json.data);
       ConfigPreferences.setConfig(domain, json.data);
       return json.data;
     } else {

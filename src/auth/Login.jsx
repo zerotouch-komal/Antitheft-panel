@@ -153,9 +153,6 @@ const getLogoUrl = () => {
   const displayName = config.displayName || "Login";
   const logoUrl = getLogoUrl();
 
-  console.log("Config logo:", config.logo);
-  console.log("Generated logo URL:", logoUrl);
-
   return (
     <>
       {isLoading ? (

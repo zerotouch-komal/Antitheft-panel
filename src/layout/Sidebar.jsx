@@ -30,8 +30,7 @@ const getLogoUrl = () => {
   
   const normalizedLogo = config.logo.replace(/\\/g, '/');
   
-  console.log("Original logo path:", config.logo);
-  console.log("Normalized logo path:", normalizedLogo);
+  // console.log("Normalized logo path:", normalizedLogo);
   
   if (normalizedLogo.startsWith('http://') || normalizedLogo.startsWith('https://')) {
     return `${baseURL}/api/proxy/image?url=${encodeURIComponent(normalizedLogo)}`;
@@ -40,18 +39,15 @@ const getLogoUrl = () => {
   if (normalizedLogo.startsWith('public/')) {
     const logoPath = normalizedLogo.replace('public/', '');
     const finalUrl = `${baseURL}/public/${logoPath}`;
-    console.log("Final logo URL:", finalUrl);
     return finalUrl;
   }
   
   if (normalizedLogo.startsWith('/')) {
     const finalUrl = `${baseURL}/public${normalizedLogo}`;
-    console.log("Final logo URL:", finalUrl);
     return finalUrl;
   }
   
-  const finalUrl = `${baseURL}/public/${normalizedLogo}`;
-  console.log("Final logo URL:", finalUrl);
+  const finalUrl = `${baseURL}/public/${normalizedLogo}`
   return finalUrl;
 };
 
@@ -97,14 +93,14 @@ const getLogoUrl = () => {
       const authData = authService.getAuthData();
       const currentUser = authService.getCurrentUser();
       
-      const response = await fetch(`${baseURL}/dashboard`, {
+      const response = await fetch(`${baseURL}/api/antitheft/dashboard`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authData?.token}`
         },
         body: JSON.stringify({
-          customerId: currentUser?.id
+          antitheftKey: currentUser?.antitheftKey
         })
       });
       
@@ -138,7 +134,7 @@ const getLogoUrl = () => {
 
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
-    if (currentUser?.id) {
+    if (currentUser?.antitheftKey) {
       fetchUserLocation();
     }
   }, []);
@@ -153,8 +149,6 @@ const getLogoUrl = () => {
   const logoUrl = getLogoUrl();
   const displayName = config?.displayName || "101 Antitheft";
 
-  console.log("Config logo:", config?.logo);
-  console.log("Generated logo URL:", logoUrl);
 
   const handleMarkAsMissing = async () => {
     try {
@@ -381,7 +375,6 @@ const getLogoUrl = () => {
                       alt={displayName}
                       className="w-35 h-35 object-contain rounded-lg"
                       onLoad={() => {
-                        console.log("✅ Logo loaded successfully:", logoUrl);
                       }}
                       onError={(e) => {
                         console.error("❌ Logo failed to load:", logoUrl);
@@ -475,7 +468,7 @@ const getLogoUrl = () => {
                   />
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-sm" style={{ color: textPrimary }}>
+                  <div className="font-semibold text-sm" style={{ color: textSecondary }}>
                     {getDeviceDisplayName()}
                   </div>
                   <div className="text-xs" style={{ color: deviceStatus.online ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)' }}>
@@ -496,7 +489,7 @@ const getLogoUrl = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="text-sm font-medium" style={{ color: textPrimary }}>
+                    <div className="text-sm font-medium" style={{ color: textSecondary }}>
                       {deviceStatus.lastSeen}
                     </div>
                     {deviceStatus.lastTime && (
@@ -520,12 +513,12 @@ const getLogoUrl = () => {
                     className="w-full px-3 py-2 rounded-lg text-sm font-medium border border-white/20 focus:outline-none focus:border-white/40 transition-colors"
                     style={{
                       backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                      color: textPrimary
+                      color: textSecondary
                     }}
                   >
-                    <option value={15} style={{backgroundColor: sidebarBottomBg, color: textPrimary}}>15 minutes</option>
-                    <option value={30} style={{backgroundColor: sidebarBottomBg, color: textPrimary}}>30 minutes</option>
-                    <option value={45} style={{backgroundColor: sidebarBottomBg, color: textPrimary}}>45 minutes</option>
+                    <option value={15} style={{backgroundColor: sidebarBottomBg, color: textSecondary}}>15 minutes</option>
+                    <option value={30} style={{backgroundColor: sidebarBottomBg, color: textSecondary}}>30 minutes</option>
+                    <option value={45} style={{backgroundColor: sidebarBottomBg, color: textSecondary}}>45 minutes</option>
                   </select>
                 </div>
               )}
@@ -636,7 +629,7 @@ const getLogoUrl = () => {
             onClick={handleLogout}
             disabled={isLoggingOut}
             className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all group"
-            style={{ color: textPrimary }}
+            style={{ color: textSecondary }}
             onMouseEnter={(e) => {
               e.target.style.backgroundColor = '#ef444420';
               e.target.style.color = '#ef4444';

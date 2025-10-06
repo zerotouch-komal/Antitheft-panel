@@ -4,7 +4,7 @@ export const authService = {
 
   async login(credentials) {
     try {
-      const response = await fetch(`${baseURL}/login`, {
+      const response = await fetch(`${baseURL}/api/appSphere/customer-login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
