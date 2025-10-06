@@ -84,7 +84,7 @@ export async function fetchConfigFromAPI() {
   
   try {
     console.log("Fetching fresh config from API...");
-    const apiUrl = `http://192.168.1.108:3001/api/companies/config`;
+    const apiUrl = `https://strong-finch-solely.ngrok-free.app/api/companies/config`;
     console.log("API URL:", apiUrl);
     
     const res = await fetch(apiUrl, {
