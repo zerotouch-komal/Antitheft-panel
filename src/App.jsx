@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { Login } from "./auth/Login";
 import { Dashboard } from "./pages/Dashboard";
 import Reports from "./pages/Report";
-import { loadConfig, getFallbackConfig } from "./utils/configLoader";
+import { getCurrentStoredConfig, getFallbackConfig } from "./utils/configLoader";
 import { authService } from "./services/AuthService";
 import Layout from "./layout/Layout";
 
@@ -13,26 +13,14 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  const [config, setConfig] = useState(getFallbackConfig());
-  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  const [config, setConfig] = useState(null);
 
   useEffect(() => {
-    const initializeConfig = async () => {
-      try {
-        const loadedConfig = await loadConfig();
-        setConfig(loadedConfig);
-      } catch (error) {
-        console.error("Failed to load config:", error);
-        setConfig(getFallbackConfig());
-      } finally {
-        setIsConfigLoading(false);
-      }
-    };
-
-    initializeConfig();
+    const storedConfig = getCurrentStoredConfig();
+    setConfig(storedConfig);
   }, []);
 
-  if (isConfigLoading) {
+  if (!config) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

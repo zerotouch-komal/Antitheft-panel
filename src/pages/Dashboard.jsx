@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { authService } from '../services/AuthService';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentStoredConfig, refreshConfig } from '../utils/configLoader';
+import { getCurrentStoredConfig } from '../utils/configLoader';
 import { Lock, MapPin, RefreshCw, Volume2Icon, AlertCircle, ChevronLeft, ChevronRight, X, VolumeX } from 'lucide-react';
 
 export function Dashboard() {
@@ -9,8 +9,7 @@ export function Dashboard() {
   const authData = authService.getAuthData();
   const currentUser = authService.getCurrentUser();
   
-  const [config, setConfig] = useState(getCurrentStoredConfig());
-  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [config] = useState(getCurrentStoredConfig());
   
   const colours = config?.theme?.colours || {};
   const [userLocation, setUserLocation] = useState(null);
@@ -25,22 +24,6 @@ export function Dashboard() {
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
-  const refreshConfigFromAPI = useCallback(async () => {
-    try {
-      setIsLoadingConfig(true);
-      console.log('Refreshing config from API...');
-      
-      const freshConfig = await refreshConfig();
-      setConfig(freshConfig);
-      console.log('Config refreshed successfully:', freshConfig);
-      
-    } catch (error) {
-      console.error('Error refreshing config:', error);
-    } finally {
-      setIsLoadingConfig(false);
-    }
-  }, []);
-
   const getDeviceToken = useCallback(() => {
     const deviceToken = currentUser?.token || currentUser?.deviceToken || currentUser?.fcmToken;
     if (!deviceToken) {
@@ -50,80 +33,78 @@ export function Dashboard() {
   }, [currentUser]);
 
   const sendDeviceCommand = useCallback(async (action) => {
-  try {
-    const deviceToken = getDeviceToken();
-    
-    console.log(`[Route Call] POST api/antitheft/send-device-command`);
-    console.log(`[Request Data] Action: ${action}, Token: ${deviceToken.substring(0, 10)}...`);
-    
-    const commandResponse = await authService.post('/api/antitheft/send-device-command', {
-      token: deviceToken,
-      action: action
-    });
-    
-    console.log(`[Response] ${action} command response:`, commandResponse);
-    return commandResponse;
-  } catch (error) {
-    console.error(`[Error] sending ${action} command:`, error);
-    throw error;
-  }
-}, [getDeviceToken]);
-
-
-const fetchUserLocation = async () => {
-  try {
-    setIsLoadingLocation(true);
-    setLocationError(null);
-    
-    console.log(`[Route Call] POST api/antitheft/dashboard`);
-    console.log(`[Request Data] Customer ID: ${currentUser?.antitheftKey}`);
-    
-    const responseData = await authService.post('/api/antitheft/dashboard', {
-      antitheftKey: currentUser?.antitheftKey
-    });
-    
-    console.log('[Response] Dashboard response:', responseData);
-    
-    if (responseData.success && responseData.data?.location) {
-      const location = responseData.data.location;
-      console.log('[Location Data] Latitude:', location.latitude, 'Longitude:', location.longitude);
-      setUserLocation({
-        lat: parseFloat(location.latitude),
-        lng: parseFloat(location.longitude),
-        lastUpdated: location.lastUpdated
+    try {
+      const deviceToken = getDeviceToken();
+      
+      console.log(`[Route Call] POST api/antitheft/send-device-command`);
+      console.log(`[Request Data] Action: ${action}, Token: ${deviceToken.substring(0, 10)}...`);
+      
+      const commandResponse = await authService.post('/api/antitheft/send-device-command', {
+        token: deviceToken,
+        action: action
       });
-      setLastUpdated(new Date(location.lastUpdated).toLocaleString());
-    } else {
-      throw new Error('No location data available in response');
+      
+      console.log(`[Response] ${action} command response:`, commandResponse);
+      return commandResponse;
+    } catch (error) {
+      console.error(`[Error] sending ${action} command:`, error);
+      throw error;
     }
-  } catch (error) {
-    console.error('[Error] fetching location:', error);
-    setLocationError(error.message);
-    setUserLocation(null);
-  } finally {
-    setIsLoadingLocation(false);
-  }
-};
+  }, [getDeviceToken]);
 
+  const fetchUserLocation = useCallback(async () => {
+    try {
+      setIsLoadingLocation(true);
+      setLocationError(null);
+      
+      console.log(`[Route Call] POST api/antitheft/dashboard`);
+      console.log(`[Request Data] Customer ID: ${currentUser?.antitheftKey}`);
+      
+      const responseData = await authService.post('/api/antitheft/dashboard', {
+        antitheftKey: currentUser?.antitheftKey
+      });
+      
+      console.log('[Response] Dashboard response:', responseData);
+      
+      if (responseData.success && responseData.data?.location) {
+        const location = responseData.data.location;
+        console.log('[Location Data] Latitude:', location.latitude, 'Longitude:', location.longitude);
+        setUserLocation({
+          lat: parseFloat(location.latitude),
+          lng: parseFloat(location.longitude),
+          lastUpdated: location.lastUpdated
+        });
+        setLastUpdated(new Date(location.lastUpdated).toLocaleString());
+      } else {
+        throw new Error('No location data available in response');
+      }
+    } catch (error) {
+      console.error('[Error] fetching location:', error);
+      setLocationError(error.message);
+      setUserLocation(null);
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, [currentUser?.antitheftKey]);
 
-const updateLocation = async () => {
-  try {
-    setIsUpdatingLocation(true);
-    console.log('[Action] Updating location - sending UPDATE_LOCATION command');
-    await sendDeviceCommand("UPDATE_LOCATION");
-    
-    console.log('[Action] Waiting 2 seconds before fetching updated location...');
-    setTimeout(async () => {
-      await fetchUserLocation();
-    }, 2000);
-    
-  } catch (error) {
-    console.error('[Error] updating location:', error);
-    setLocationError(error.message);
-  } finally {
-    setIsUpdatingLocation(false);
-  }
-};
+  const updateLocation = async () => {
+    try {
+      setIsUpdatingLocation(true);
+      console.log('[Action] Updating location - sending UPDATE_LOCATION command');
+      await sendDeviceCommand("UPDATE_LOCATION");
+      
+      console.log('[Action] Waiting 2 seconds before fetching updated location...');
+      setTimeout(async () => {
+        await fetchUserLocation();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('[Error] updating location:', error);
+      setLocationError(error.message);
+    } finally {
+      setIsUpdatingLocation(false);
+    }
+  };
 
   const handleRemoteAlarm = async () => {
     try {
@@ -152,18 +133,10 @@ const updateLocation = async () => {
   };
 
   useEffect(() => {
-    const initializeDashboard = async () => {
-      await refreshConfigFromAPI();
-      console.log(currentUser);
-      
-      
-      if (currentUser?.antitheftKey) {
-        await fetchUserLocation();
-      }
-    };
-
-    initializeDashboard();
-  }, [currentUser?.antitheftKey, refreshConfigFromAPI]);
+    if (currentUser?.antitheftKey) {
+      fetchUserLocation();
+    }
+  }, [currentUser?.antitheftKey, fetchUserLocation]);
 
   const hasValidLocation = userLocation && userLocation.lat && userLocation.lng;
 
@@ -263,7 +236,7 @@ const updateLocation = async () => {
   const SidebarContent = ({ isMobile = false }) => (
     <>
       {isMobile && (
-        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: colours.tertiaryColour || '#34495E' }}>
+        <div className="flex items-center justify-between p-6 border-b flex-shrink-0" style={{ borderColor: colours.tertiaryColour || '#34495E' }}>
           <h3 className="text-lg font-semibold" style={{ color: colours.textSecondary || 'white' }}>
             Actions
           </h3>
@@ -286,27 +259,15 @@ const updateLocation = async () => {
         <ActionButtons />
         <StatusInfo />
       </div>
-      {/* {isMobile && (
-        <div className="p-6 border-t" style={{ borderColor: colours.tertiaryColour || '#34495E' }}>
-          <button
-            onClick={() => navigate(-1)}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg hover:opacity-80 transition-opacity"
-            style={{ backgroundColor: colours.secondaryCard || '#34495E' }}
-          >
-            <ChevronLeft className="w-5 h-5" style={{ color: colours.textSecondary || 'white' }} />
-            <span style={{ color: colours.textSecondary || 'white' }}>Back</span>
-          </button>
-        </div>
-      )} */}
     </>
   );
 
-  if (isLoadingConfig && isLoadingLocation) {
+  if (isLoadingLocation) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour || '#f5f5f5' }}>
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: colours.primaryColour }} />
-          <p style={{ color: colours.textPrimary }}>Loading dashboard...</p>
+          <p style={{ color: colours.textPrimary }}>Loading location...</p>
         </div>
       </div>
     );
@@ -315,50 +276,42 @@ const updateLocation = async () => {
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: colours.bgColour || '#f5f5f5' }}>
       <div className="flex-1 relative">
-        {isLoadingLocation ? (
+        {locationError ? (
           <div className="w-full h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour }}>
             <div className="text-center">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: colours.primaryColour }} />
-              <p style={{ color: colours.textPrimary }}>Loading location...</p>
+              <div className="mb-4">
+                <MapPin className="w-12 h-12 mx-auto mb-2" style={{ color: colours.primaryColour }} />
+                <p className="text-lg font-semibold mb-2" style={{ color: colours.textPrimary }}>
+                  Location Not Available
+                </p>
+                <p className="text-sm mb-4" style={{ color: colours.textPrimary }}>
+                  {locationError}
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={fetchUserLocation}
+                    className="px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={updateLocation}
+                    disabled={isUpdatingLocation}
+                    className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mx-auto"
+                    style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+                  >
+                    {isUpdatingLocation ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <MapPin className="w-4 h-4" />
+                    )}
+                    {isUpdatingLocation ? 'Requesting update...' : 'Update location'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        ) : locationError ? (
-  <div className="w-full h-screen flex items-center justify-center" style={{ backgroundColor: colours.bgColour }}>
-    <div className="text-center">
-      <div className="mb-4">
-        <MapPin className="w-12 h-12 mx-auto mb-2" style={{ color: colours.primaryColour }} />
-        <p className="text-lg font-semibold mb-2" style={{ color: colours.textPrimary }}>
-          Location Not Available
-        </p>
-        <p className="text-sm mb-4" style={{ color: colours.textPrimary }}>
-          {locationError}
-        </p>
-        <div className="space-y-2">
-          <button
-            onClick={fetchUserLocation}
-            className="px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
-          >
-            Retry
-          </button>
-          <button
-            onClick={updateLocation}
-            disabled={isUpdatingLocation}
-            className="cursor-pointer flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mx-auto"
-            style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
-          >
-            {isUpdatingLocation ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <MapPin className="w-4 h-4" />
-            )}
-            {isUpdatingLocation ? 'Requesting update...' : 'Update location'}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
         ) : hasValidLocation ? (
           <>
             <iframe

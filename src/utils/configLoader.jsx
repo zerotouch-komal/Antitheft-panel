@@ -84,7 +84,7 @@ export async function fetchConfigFromAPI() {
   
   try {
     console.log("Fetching fresh config from API...");
-    const apiUrl = `https://strong-finch-solely.ngrok-free.app/api/companies/config`;
+    const apiUrl = `http://192.168.1.108:3001/api/companies/config`;
     console.log("API URL:", apiUrl);
     
     const res = await fetch(apiUrl, {
@@ -132,7 +132,6 @@ class ConfigManager {
     }
 
     if (this.loading && this.loadPromise) {
-      console.log("Config already loading, waiting for existing promise...");
       return await this.loadPromise;
     }
 
@@ -154,11 +153,9 @@ class ConfigManager {
       const storedConfig = ConfigPreferences.getConfig();
       
       if (storedConfig && storedConfig.data) {
-        console.log("Loading config from storage");
         return storedConfig.data;
       }
       
-      console.log("No stored config found, fetching from API...");
       return await fetchConfigFromAPI();
       
     } catch (err) {

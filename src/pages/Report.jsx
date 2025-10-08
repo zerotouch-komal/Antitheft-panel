@@ -27,7 +27,8 @@ const Reports = () => {
     }
 
     const cleanPath = imagePath.startsWith('/') ? imagePath.substring(1) : imagePath;
-    return `${baseURL}/${cleanPath}`;
+    // Add timestamp to bypass cache and CORS issues
+    return `${baseURL}/${cleanPath}?t=${Date.now()}`;
   };
 
   const getantitheftKey = () => {
@@ -75,7 +76,7 @@ const Reports = () => {
   }, []);
 
   useEffect(() => {
-    console.log("hxzfjklbdrs jm,gbdrtf ",antitheftKey);
+    console.log("antitheftKey: ", antitheftKey);
     
     if (antitheftKey) {
       fetchReports();
@@ -83,95 +84,126 @@ const Reports = () => {
   }, [antitheftKey]);
 
   const fetchReports = async () => {
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
 
-  try {
-    console.log('=== API CALL START: /api/antitheft/report-list ===');
-    console.log('Request payload:', { antitheftKey: antitheftKey });
-    console.log('Fetching reports for customer ID:', antitheftKey);
+    try {
+      console.log('=== API CALL START: /api/antitheft/report-list ===');
+      console.log('Request payload:', { antitheftKey: antitheftKey });
 
-    const result = await authService.post('/api/antitheft/report-list', { 
-      antitheftKey: antitheftKey 
-    });
+      const result = await authService.post('/api/antitheft/report-list', { 
+        antitheftKey: antitheftKey 
+      });
 
-    console.log('=== API CALL COMPLETE: /api/antitheft/report-list ===');
-    console.log('Response status:', result.success);
-    console.log('Resjkjkponse data:', result.data);
-    console.log('Reports response:', result);
+      console.log('=== API CALL COMPLETE: /api/antitheft/report-list ===');
+      console.log('Response:', result);
 
-    if (result.success && result.data) {
-      console.log(`✓ Successfully fetched ${result.data.length} reports`);
-      setReports(result.data);
+      if (result.success && result.data) {
+        console.log(`✓ Successfully fetched ${result.data.length} reports`);
+        setReports(result.data);
 
-      if (result.data.length > 0 && !selectedReport) {
-        console.log('Auto-selecting first report:', result.data[0]._id);
-        fetchReportDetails(result.data[0]._id);
+        if (result.data.length > 0 && !selectedReport) {
+          console.log('Auto-selecting first report:', result.data[0]._id);
+          fetchReportDetails(result.data[0]._id);
+        }
+      } else {
+        console.error('✗ Failed to fetch reports:', result.message);
+        setError(result.message || 'Failed to fetch reports');
+        setReports([]);
       }
-    } else {
-      console.error('✗ Failed to fetch reports:', result.message);
-      setError(result.message || 'Failed to fetch reports');
+    } catch (err) {
+      console.error('=== API CALL ERROR: /api/antitheft/report-list ===');
+      console.error('Error:', err);
+      setError('Network error occurred while fetching reports');
       setReports([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('=== API CALL ERROR: /api/antitheft/report-list ===');
-    console.error('Error details:', err);
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    setError('Network error occurred while fetching reports');
-    setReports([]);
-  } finally {
-    setLoading(false);
-    console.log('=== API CALL END: /api/antitheft/report-list ===\n');
-  }
-};
+  };
 
-const fetchReportDetails = async (reportId) => {
-  if (!reportId) {
-    console.error('✗ reportId is required but not provided');
-    setError('Report ID is missing');
-    return;
-  }
-  setReportLoading(true);
-  setError(null);
+  const fetchReportDetails = async (reportId) => {
+    if (!reportId) {
+      console.error('✗ reportId is required but not provided');
+      setError('Report ID is missing');
+      return;
+    }
+    setReportLoading(true);
+    setError(null);
 
-  try {
-    console.log('=== API CALL START: /api/antitheft/particular-report ===');
-    console.log('Request payload:', { reportId: reportId });
-    console.log('Fetching report details for ID:', reportId);
+    try {
+      console.log('=== API CALL START: /api/antitheft/particular-report ===');
+      console.log('Request payload:', { reportId: reportId });
 
-    const result = await authService.post('/api/antitheft/particular-report', { 
-      reportId: reportId
-    });
+      const result = await authService.post('/api/antitheft/particular-report', { 
+        reportId: reportId
+      });
 
-    console.log('=== API CALL COMPLETE: /api/antitheft/particular-report ===');
-    console.log('Response status:', result.success);
-    console.log('Response data:', result.data);
-    console.log('Report details response:', result);
+      console.log('=== API CALL COMPLETE: /api/antitheft/particular-report ===');
+      console.log('Response:', result);
 
-    if (result.success) {
-      console.log('✓ Successfully fetched report details');
-      console.log('Selected report ID:', result.data._id);
-      setSelectedReport(result.data);
-      if (window.innerWidth < 1024) {
-        console.log('Mobile view detected - closing sidebar');
-        setIsSidebarOpen(false);
+      if (result.success && result.data) {
+        console.log('✓ Successfully fetched report details');
+        
+        // Transform the nested data structure to flat structure
+        const transformedData = {
+          _id: result.data.report?._id || reportId,
+          report: {
+            _id: result.data.report?._id,
+            customerId: result.data.report?.customerId,
+            deviceToken: result.data.report?.deviceToken,
+            frontPhoto: result.data.report?.frontPhoto,
+            backPhoto: result.data.report?.backPhoto,
+            latitude: result.data.report?.latitude,
+            longitude: result.data.report?.longitude,
+            accuracy: result.data.report?.accuracy,
+            timestamp: result.data.report?.timestamp,
+            simProvider: result.data.report?.simProvider,
+            simNumber: result.data.report?.simNumber,
+            connectedWifi: result.data.report?.connectedWifi,
+            nearbyWifiNetworks: result.data.report?.nearbyWifiNetworks || [],
+            triggerSource: result.data.report?.triggerSource,
+            publicIpAddress: result.data.report?.publicIpAddress,
+            createdAt: result.data.report?.createdAt,
+            updatedAt: result.data.report?.updatedAt,
+            antitheftKey: result.data.report?.customerId
+          },
+          customer: {
+            _id: result.data.appCustomer?._id,
+            name: result.data.appCustomer?.name,
+            email: result.data.appCustomer?.email,
+            mobile: result.data.appCustomer?.mobile,
+            antitheftKey: result.data.appCustomer?.antitheftKey,
+            deviceInfo: {
+              model: result.data.appCustomer?.deviceInfo?.model,
+              brand: result.data.appCustomer?.deviceInfo?.brand,
+              manufacturer: result.data.appCustomer?.deviceInfo?.manufacturer,
+              totalRAM: result.data.appCustomer?.deviceInfo?.totalRAM,
+              totalStorage: result.data.appCustomer?.deviceInfo?.totalStorage,
+              availableStorage: result.data.appCustomer?.deviceInfo?.availableStorage,
+              androidVersion: result.data.appCustomer?.deviceInfo?.androidVersion
+            },
+            location: result.data.appCustomer?.location
+          }
+        };
+        
+        console.log('Transformed data:', transformedData);
+        setSelectedReport(transformedData);
+        
+        if (window.innerWidth < 1024) {
+          setIsSidebarOpen(false);
+        }
+      } else {
+        console.error('✗ Failed to fetch report details:', result.message);
+        setError(result.message || 'Failed to fetch report details');
       }
-    } else {
-      console.error('✗ Failed to fetch report details:', result.message);
-      setError(result.message || 'Failed to fetch report details');
+    } catch (err) {
+      console.error('=== API CALL ERROR: /api/antitheft/particular-report ===');
+      console.error('Error:', err);
+      setError('Network error occurred while fetching report details');
+    } finally {
+      setReportLoading(false);
     }
-  } catch (err) {
-    console.error('=== API CALL ERROR: /api/antitheft/particular-report ===');
-    console.error('Error details:', err);
-    console.error('Error message:', err.message);
-    console.error('Error stack:', err.stack);
-    setError('Network error occurred while fetching report details');
-  } finally {
-    setReportLoading(false);
-    console.log('=== API CALL END: /api/antitheft/particular-report ===\n');
-  }
-};
+  };
 
   const handlePrint = () => {
     window.print();
@@ -188,6 +220,7 @@ const fetchReportDetails = async (reportId) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const options = {
       month: 'short',
@@ -213,6 +246,7 @@ const fetchReportDetails = async (reportId) => {
   };
 
   const generateReportNumber = (id) => {
+    if (!id) return '#N/A';
     return `#${id.slice(-8).toUpperCase()}`;
   };
 
@@ -253,6 +287,7 @@ const fetchReportDetails = async (reportId) => {
             src={image.src}
             alt={image.title}
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            crossOrigin="anonymous"
             onClick={(e) => e.stopPropagation()}
           />
           {image.title && (
@@ -294,7 +329,7 @@ const fetchReportDetails = async (reportId) => {
 
       <div className="p-4 border-b flex-shrink-0" style={{ borderColor: colours.primaryCard }}>
         <h3 className="font-semibold text-sm sm:text-base truncate" style={{ color: colours.textPrimary }}>
-          {selectedReport?.report?.antitheftKey ? selectedReport.customer?.name || selectedReport.customer?.deviceInfo?.brand : 'Device Reports'}
+          {selectedReport?.customer?.name || selectedReport?.customer?.deviceInfo?.brand || 'Device Reports'}
         </h3>
       </div>
 
@@ -315,7 +350,7 @@ const fetchReportDetails = async (reportId) => {
                 key={report._id}
                 className="p-3 sm:p-4 cursor-pointer transition-all duration-200 border-b border-gray-700 hover:bg-gray-800 active:bg-gray-700"
                 style={{
-                  backgroundColor: selectedReport?._id === report._id ? colours?.primary : 'transparent'
+                  backgroundColor: selectedReport?._id === report._id ? colours?.primaryCard : 'transparent'
                 }}
                 onClick={() => {
                   console.log('Selected report ID:', report._id);
@@ -333,16 +368,10 @@ const fetchReportDetails = async (reportId) => {
                       Report #{index + 1}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">
-                      {new Date(report.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {formatDate(report.createdAt)}
                     </div>
                     <div className="text-xs text-gray-600 mt-1 truncate">
-                      Source: {report.triggerSource.replace('_', ' ').toUpperCase()}
+                      Source: {getTriggerSourceLabel(report.triggerSource)}
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-2 flex-shrink-0">
@@ -360,19 +389,6 @@ const fetchReportDetails = async (reportId) => {
           </div>
         )}
       </div>
-      
-      {/* {isMobile && (
-        <div className="p-4 border-t flex-shrink-0" style={{ borderColor: colours.primaryCard }}>
-          <button 
-            onClick={() => navigate(-1)}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-lg hover:opacity-80 transition-opacity"
-            style={{ backgroundColor: colours.primaryCard }}
-          >
-            <ChevronLeft className="w-5 h-5" style={{ color: colours.textSecondary }} />
-            <span style={{ color: colours.textSecondary }}>Back</span>
-          </button>
-        </div>
-      )} */}
     </div>
   );
 
@@ -395,7 +411,7 @@ const fetchReportDetails = async (reportId) => {
                 </button>
                 <div className="flex-1 min-w-0">
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold truncate" style={{ color: colours.textPrimary }}>
-                    {selectedReport?.customer?.deviceInfo?.model || selectedReport?.customer?.deviceInfo?.brand || 'Device Reports'}
+                    {selectedReport?.customer?.name || selectedReport?.customer?.deviceInfo?.model || 'Device Reports'}
                   </h1>
                 </div>
               </div>
@@ -423,7 +439,7 @@ const fetchReportDetails = async (reportId) => {
                           Security Report {generateReportNumber(selectedReport.report._id)}
                         </h2>
                         <p className="text-xs sm:text-sm opacity-90 mt-1 truncate">
-                          {selectedReport.customer?.name} {selectedReport.customer?.deviceInfo?.brand} {selectedReport.customer?.deviceInfo?.model}
+                          {selectedReport.customer?.name} - {selectedReport.customer?.deviceInfo?.brand} {selectedReport.customer?.deviceInfo?.model}
                         </p>
                       </div>
                       <div className="w-full flex flex-col sm:flex-row gap-2">
@@ -519,7 +535,7 @@ const fetchReportDetails = async (reportId) => {
                               <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Accuracy</label>
                             </div>
                             <p className="text-sm sm:text-lg font-semibold" style={{ color: colours.textPrimary }}>
-                              {selectedReport.report.accuracy ? `${selectedReport.report.accuracy}m` : 'N/A'}
+                              {selectedReport.report.accuracy ? `${selectedReport.report.accuracy.toFixed(2)}m` : 'N/A'}
                             </p>
                           </div>
                           <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
@@ -560,6 +576,7 @@ const fetchReportDetails = async (reportId) => {
                                 src={getImageUrl(selectedReport.report.frontPhoto)} 
                                 alt="Front Photo" 
                                 className="w-full h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                crossOrigin="anonymous"
                                 onClick={() => openImageModal(getImageUrl(selectedReport.report.frontPhoto), 'Front Photo')}
                                 onError={(e) => {
                                   console.error('Failed to load front photo:', getImageUrl(selectedReport.report.frontPhoto));
@@ -590,6 +607,7 @@ const fetchReportDetails = async (reportId) => {
                                 src={getImageUrl(selectedReport.report.backPhoto)} 
                                 alt="Back Photo" 
                                 className="w-full h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                crossOrigin="anonymous"
                                 onClick={() => openImageModal(getImageUrl(selectedReport.report.backPhoto), 'Back Photo')}
                                 onError={(e) => {
                                   console.error('Failed to load back photo:', getImageUrl(selectedReport.report.backPhoto));
@@ -629,6 +647,18 @@ const fetchReportDetails = async (reportId) => {
                       </p>
                     </div>
                     <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Email</label>
+                      <p className="text-sm sm:text-lg font-semibold mt-1 break-words" style={{ color: colours.textPrimary }}>
+                        {selectedReport.customer?.email || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Mobile</label>
+                      <p className="text-sm sm:text-lg font-semibold mt-1 break-words" style={{ color: colours.textPrimary }}>
+                        {selectedReport.customer?.mobile || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
                       <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Device Model</label>
                       <p className="text-sm sm:text-lg font-semibold mt-1 break-words" style={{ color: colours.textPrimary }}>
                         {selectedReport.customer?.deviceInfo?.model || 'N/A'}
@@ -653,9 +683,15 @@ const fetchReportDetails = async (reportId) => {
                       </p>
                     </div>
                     <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
-                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Storage</label>
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Available Storage</label>
                       <p className="text-sm sm:text-lg font-semibold mt-1" style={{ color: colours.textPrimary }}>
-                        {selectedReport.customer?.deviceInfo?.availableStorage || selectedReport.customer?.deviceInfo?.totalStorage || 'N/A'}
+                        {selectedReport.customer?.deviceInfo?.availableStorage || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>Total Storage</label>
+                      <p className="text-sm sm:text-lg font-semibold mt-1" style={{ color: colours.textPrimary }}>
+                        {selectedReport.customer?.deviceInfo?.totalStorage || 'N/A'}
                       </p>
                     </div>
                     <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
@@ -697,6 +733,12 @@ const fetchReportDetails = async (reportId) => {
                         {selectedReport.report.simProvider || 'N/A'}
                       </p>
                     </div>
+                    {/* <div className="w-full p-3 sm:p-4 rounded-lg" style={{ backgroundColor: colours.secondaryCard }}>
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: colours.textSecondary }}>SIM Number</label>
+                      <p className="text-sm sm:text-lg font-semibold mt-1 break-words" style={{ color: colours.textPrimary }}>
+                        {selectedReport.report.simNumber || 'N/A'}
+                      </p>
+                    </div> */}
                   </div>
                 </div>
 

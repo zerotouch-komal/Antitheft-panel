@@ -16,31 +16,42 @@ export function Login({ config: initialConfig }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isConfigLoading, setIsConfigLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [logoError, setLogoError] = useState(false);
   const [configLoadError, setConfigLoadError] = useState(false);
   const [isRefreshingConfig, setIsRefreshingConfig] = useState(false);
-
+  
   useEffect(() => {
+    let mounted = true;
+    
     const loadFreshConfig = async () => {
       setIsConfigLoading(true);
       setIsRefreshingConfig(true);
       try {
         console.log("Refreshing config for login page...");
         const freshConfig = await refreshConfig();
-        setConfig(freshConfig);
-        setConfigLoadError(false);
-        console.log("Config refreshed successfully");
+        if (mounted) {
+          setConfig(freshConfig);
+          setConfigLoadError(false);
+          console.log("Config refreshed successfully");
+        }
       } catch (error) {
         console.error("Failed to refresh config, using fallback:", error);
-        setConfigLoadError(true);
-        setConfig(getFallbackConfig());
+        if (mounted) {
+          setConfigLoadError(true);
+          setConfig(getFallbackConfig());
+        }
       } finally {
-        setIsConfigLoading(false);
-        setIsRefreshingConfig(false);
+        if (mounted) {
+          setIsConfigLoading(false);
+          setIsRefreshingConfig(false);
+        }
       }
     };
 
     loadFreshConfig();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const refreshConfiguration = async () => {
@@ -88,34 +99,6 @@ export function Login({ config: initialConfig }) {
     }
   };
 
-const getLogoUrl = () => {
-    if (!config?.logo || logoError) return null;
-
-    const baseURL = ' https://app.101ewarranty.com';
-    
-    const normalizedLogo = config.logo.replace(/\\/g, '/');
-    
-    if (normalizedLogo.startsWith('http://') || normalizedLogo.startsWith('https://')) {
-      return `${baseURL}/api/proxy/image?url=${encodeURIComponent(normalizedLogo)}`;
-    }
-    
-    if (normalizedLogo.startsWith('public/')) {
-      const logoPath = normalizedLogo.replace('public/', '');
-      return `${baseURL}/public/${logoPath}`;
-    }
-    
-    if (normalizedLogo.startsWith('/')) {
-      return `${baseURL}/public${normalizedLogo}`;
-    }
-    
-    return `${baseURL}/public/${normalizedLogo}`;
-  };
-
-  const handleLogoError = () => {
-    console.warn("Logo failed to load, falling back to icon");
-    console.warn("Attempted logo URL:", getLogoUrl());
-    setLogoError(true);
-  };
   const FullScreenLoader = ({ text = "Loading..." }) => {
     const colours = config?.theme?.colours || {};
 
@@ -151,7 +134,6 @@ const getLogoUrl = () => {
 
   const colours = config.theme?.colours || {};
   const displayName = config.displayName || "Login";
-  const logoUrl = getLogoUrl();
 
   return (
     <>
@@ -184,17 +166,15 @@ const getLogoUrl = () => {
             )}
 
             <div className="text-center mb-8">
-              {logoUrl && !logoError ? (
+              {config?.logo ? (
                 <div
                   className="inline-block p-2 rounded-2xl mb-6"
                   style={{ backgroundColor: colours.primaryCard }}
                 >
                   <img
-                    src={logoUrl}
+                    src={config.logo}
                     alt={displayName}
                     className="mx-auto rounded-lg max-h-16"
-                    onError={handleLogoError}
-                    crossOrigin="anonymous"
                   />
                 </div>
               ) : (

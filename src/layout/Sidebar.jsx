@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { authService } from '../services/AuthService';
-import { loadConfig, getCurrentStoredConfig } from '../utils/configLoader';
+import { getCurrentStoredConfig } from '../utils/configLoader';
 import { Smartphone, Shield, X, MapPin, FileText, Menu, AlertTriangle, ChevronRight, LogOut, RefreshCw} from 'lucide-react';
 
-const Sidebar = ({ isOpen, setIsOpen }) => {
+const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
   const location = useLocation();
-  const [config, setConfig] = useState(null);
+  const [config] = useState(initialConfig || getCurrentStoredConfig());
   const [userInfo, setUserInfo] = useState(null);
   const [deviceInfo, setDeviceInfo] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isMissingMode, setIsMissingMode] = useState(false);
+  
+  const [isMissingMode, setIsMissingMode] = useState(() => {
+    const stored = localStorage.getItem('device_missing_mode');
+    return stored !== null ? JSON.parse(stored) : false;
+  });
+  
   const [isProcessingMissing, setIsProcessingMissing] = useState(false);
-  const [reportMinutes, setReportMinutes] = useState(15);
+  
+  const [reportMinutes, setReportMinutes] = useState(() => {
+    const stored = localStorage.getItem('device_report_minutes');
+    return stored !== null ? JSON.parse(stored) : 15;
+  });
+  
   const [errorMessage, setErrorMessage] = useState('');
-  const [logoError, setLogoError] = useState(false);
 
   const [userLocation, setUserLocation] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
@@ -23,56 +32,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
-const getLogoUrl = () => {
-  if (!config?.logo || logoError) return null;
-
-  const baseURL = 'https://app.101ewarranty.com';
-  
-  const normalizedLogo = config.logo.replace(/\\/g, '/');
-  
-  // console.log("Normalized logo path:", normalizedLogo);
-  
-  if (normalizedLogo.startsWith('http://') || normalizedLogo.startsWith('https://')) {
-    return `${baseURL}/api/proxy/image?url=${encodeURIComponent(normalizedLogo)}`;
-  }
-  
-  if (normalizedLogo.startsWith('public/')) {
-    const logoPath = normalizedLogo.replace('public/', '');
-    const finalUrl = `${baseURL}/public/${logoPath}`;
-    return finalUrl;
-  }
-  
-  if (normalizedLogo.startsWith('/')) {
-    const finalUrl = `${baseURL}/public${normalizedLogo}`;
-    return finalUrl;
-  }
-  
-  const finalUrl = `${baseURL}/public/${normalizedLogo}`
-  return finalUrl;
-};
-
-  const handleLogoError = () => {
-    console.warn("Logo failed to load, falling back to icon");
-    console.warn("Attempted logo URL:", getLogoUrl());
-    setLogoError(true);
-  };
+  useEffect(() => {
+    localStorage.setItem('device_missing_mode', JSON.stringify(isMissingMode));
+  }, [isMissingMode]);
 
   useEffect(() => {
-    const initConfig = async () => {
-      try {
-        const loadedConfig = await loadConfig();
-        console.log("Config loaded:", loadedConfig);
-        console.log("Logo URL:", loadedConfig?.logo);
-        setConfig(loadedConfig);
-      } catch (error) {
-        console.error("Config loading error:", error);
-        const storedConfig = getCurrentStoredConfig();
-        console.log("Using stored config:", storedConfig);
-        console.log("Stored logo URL:", storedConfig?.logo);
-        setConfig(storedConfig);
-      }
-    };
-    
+    localStorage.setItem('device_report_minutes', JSON.stringify(reportMinutes));
+  }, [reportMinutes]);
+
+  useEffect(() => {
     const loadUserData = () => {
       const currentUser = authService.getCurrentUser();
       const deviceData = authService.getDeviceInfo();
@@ -81,7 +49,6 @@ const getLogoUrl = () => {
       setDeviceInfo(deviceData);
     };
     
-    initConfig();
     loadUserData();
   }, []);
 
@@ -90,26 +57,11 @@ const getLogoUrl = () => {
       setIsLoadingLocation(true);
       setLocationError(null);
       
-      const authData = authService.getAuthData();
       const currentUser = authService.getCurrentUser();
       
-      const response = await fetch(`${baseURL}/api/antitheft/dashboard`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authData?.token}`
-        },
-        body: JSON.stringify({
-          antitheftKey: currentUser?.antitheftKey
-        })
+      const responseData = await authService.post('/api/antitheft/dashboard', {
+        antitheftKey: currentUser?.antitheftKey
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch location');
-      }
-      
-      const responseData = await response.json();
-      console.log('Dashboard response:', responseData);
       
       if (responseData.success && responseData.data?.location) {
         const location = responseData.data.location;
@@ -146,16 +98,13 @@ const getLogoUrl = () => {
   const secondaryColor = colors.secondaryColour || '#1d4ed8';
   const textPrimary = colors.textPrimary === '#000' ? '#f8fafc' : colors.textPrimary || '#f8fafc';
   const textSecondary = colors.textSecondary === '#fff' ? '#94a3b8' : colors.textSecondary || '#94a3b8';
-  const logoUrl = getLogoUrl();
   const displayName = config?.displayName || "101 Antitheft";
-
 
   const handleMarkAsMissing = async () => {
     try {
       setIsProcessingMissing(true);
       setErrorMessage('');
       
-      const authData = authService.getAuthData();
       const currentUser = authService.getCurrentUser();
       const deviceToken = currentUser?.token || currentUser?.deviceToken || currentUser?.fcmToken;
       
@@ -171,28 +120,7 @@ const getLogoUrl = () => {
           minutes: reportMinutes.toString()
         };
 
-        console.log('Sending request to:', `${baseURL}/send-device-command`);
-        console.log('Request payload:', requestPayload);
-
-        const response = await fetch(`${baseURL}/send-device-command`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authData?.token}`
-          },
-          body: JSON.stringify(requestPayload)
-        });
-
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Server response:', errorText);
-          throw new Error(`Server error: ${response.status} - ${errorText || 'Failed to start missing report'}`);
-        }
-
-        const commandResponse = await response.json();
+        const commandResponse = await authService.post('/api/antitheft/send-device-command', requestPayload);
         console.log('Missing report started:', commandResponse);
         
         setIsMissingMode(true);
@@ -202,26 +130,7 @@ const getLogoUrl = () => {
           action: "STOP_REPORT"
         };
 
-        console.log('Sending stop request:', requestPayload);
-
-        const response = await fetch(`${baseURL}/send-device-command`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authData?.token}`
-          },
-          body: JSON.stringify(requestPayload)
-        });
-
-        console.log('Stop report response status:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Stop report server response:', errorText);
-          throw new Error(`Server error: ${response.status} - ${errorText || 'Failed to stop missing report'}`);
-        }
-
-        const commandResponse = await response.json();
+        const commandResponse = await authService.post('/api/antitheft/send-device-command', requestPayload);
         console.log('Missing report stopped:', commandResponse);
         
         setIsMissingMode(false);
@@ -239,11 +148,8 @@ const getLogoUrl = () => {
     }
   };
 
-  const topMenuItems = [
-  ];
-
-  const deviceMenuItems = [
-  ];
+  const topMenuItems = [];
+  const deviceMenuItems = [];
 
   const bottomMenuItems = [
     {
@@ -368,20 +274,12 @@ const getLogoUrl = () => {
         <div className="flex-shrink-0 relative p-6 border-b border-white/10">
           <div className="flex items-center justify-between">
             <div className="flex justify-center w-full">
-                {logoUrl && !logoError ? (
+                {config?.logo ? (
                   <div className="flex-shrink-0">
                     <img 
-                      src={logoUrl} 
+                      src={config.logo} 
                       alt={displayName}
                       className="w-35 h-35 object-contain rounded-lg"
-                      onLoad={() => {
-                      }}
-                      onError={(e) => {
-                        console.error("❌ Logo failed to load:", logoUrl);
-                        console.error("Error details:", e);
-                        handleLogoError();
-                      }}
-                      crossOrigin="anonymous"
                     />
                   </div>
                 ) : (
@@ -459,7 +357,6 @@ const getLogoUrl = () => {
                   >
                     <Smartphone className="w-6 h-6 text-white" />
                   </div>
-                  {/* Add online status indicator */}
                   <div 
                     className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 ${
                       deviceStatus.online ? 'bg-green-500' : 'bg-red-500'
@@ -477,7 +374,6 @@ const getLogoUrl = () => {
                 </div>
               </div>
 
-              {/* Updated connection info section */}
               <div className="space-y-1 mb-4">
                 <div className="text-xs font-medium" style={{ color: textSecondary }}>
                   Last Connection
@@ -501,7 +397,6 @@ const getLogoUrl = () => {
                 )}
               </div>
 
-              {/* Rest of the component remains the same */}
               {!isMissingMode && (
                 <div className="mb-4">
                   <div className="text-xs font-medium mb-2" style={{ color: textSecondary }}>
@@ -636,7 +531,7 @@ const getLogoUrl = () => {
             }}
             onMouseLeave={(e) => {
               e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = textPrimary;
+              e.target.style.color = textSecondary;
             }}
           >
             <LogOut
@@ -647,7 +542,7 @@ const getLogoUrl = () => {
             <span className="font-medium">
               {isLoggingOut ? 'Signing Out...' : 'Logout'}
             </span>
-            <ChevronRight s ize={16} className="ml-auto" style={{ color: textSecondary }} />
+            <ChevronRight size={16} className="ml-auto" style={{ color: textSecondary }} />
           </button>
         </div>
       </div>
