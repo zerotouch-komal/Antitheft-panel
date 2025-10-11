@@ -84,7 +84,7 @@ export async function fetchConfigFromAPI() {
   
   try {
     console.log("Fetching fresh config from API...");
-    const apiUrl = `https://caring-koi-genuine.ngrok-free.app/api/companies/config`;
+    const apiUrl = `https://app.101ewarranty.com/api/companies/config`;
     console.log("API URL:", apiUrl);
     
     const res = await fetch(apiUrl, {
