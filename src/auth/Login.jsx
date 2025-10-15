@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../services/AuthService";
 import { refreshConfig, getFallbackConfig } from "../utils/configLoader";
 import { Eye, EyeOff, Lock, Mail, RefreshCw } from "lucide-react";
+import { ForgotPasswordDialog } from "../components/ForgotPasswordDialog";
 
 export function Login({ config: initialConfig }) {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export function Login({ config: initialConfig }) {
   const [showPassword, setShowPassword] = useState(false);
   const [configLoadError, setConfigLoadError] = useState(false);
   const [isRefreshingConfig, setIsRefreshingConfig] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   
   useEffect(() => {
     let mounted = true;
@@ -297,6 +299,17 @@ export function Login({ config: initialConfig }) {
                 </div>
               </div>
 
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPasswordOpen(true)}
+                  className="cursor-pointer text-sm font-medium hover:underline transition-all"
+                  style={{ color: colours.primaryColour }}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
               {error && (
                 <div
                   className="text-sm p-4 rounded-xl border-l-4 font-medium"
@@ -361,6 +374,12 @@ export function Login({ config: initialConfig }) {
           </div>
         </div>
       )}
+
+      <ForgotPasswordDialog
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        config={config}
+      />
 
       <style jsx>{`
         input::placeholder {

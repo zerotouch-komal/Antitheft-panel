@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { authService } from '../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentStoredConfig } from '../utils/configLoader';
-import { Lock, MapPin, RefreshCw, Volume2Icon, AlertCircle, ChevronLeft, ChevronRight, X, VolumeX } from 'lucide-react';
+import { Lock, MapPin, RefreshCw, Volume2Icon, AlertCircle, ChevronLeft, ChevronRight, X, VolumeX, Move } from 'lucide-react';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -21,6 +21,11 @@ export function Dashboard() {
   const [isRemoteAlarmActive, setIsRemoteAlarmActive] = useState(false);
   const [isProcessingAlarm, setIsProcessingAlarm] = useState(false);
   const [isProcessingScreenLock, setIsProcessingScreenLock] = useState(false);
+  
+  const [dialogPosition, setDialogPosition] = useState({ x: 24, y: 24 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const dialogRef = useRef(null);
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
@@ -131,6 +136,106 @@ export function Dashboard() {
       setIsProcessingScreenLock(false);
     }
   };
+
+  const adjustDialogPosition = useCallback(() => {
+    if (dialogRef.current) {
+      const dialogWidth = dialogRef.current.offsetWidth;
+      const dialogHeight = dialogRef.current.offsetHeight;
+      const isDesktop = window.innerWidth >= 1024;
+      const rightSidebarWidth = (isDesktop || isSidebarOpen) ? 320 : 0;
+      const padding = 16;
+      
+      const maxX = window.innerWidth - rightSidebarWidth - dialogWidth - padding;
+      const maxY = window.innerHeight - dialogHeight - padding;
+      
+      setDialogPosition(prev => ({
+        x: Math.max(padding, Math.min(prev.x, maxX)),
+        y: Math.max(padding, Math.min(prev.y, maxY))
+      }));
+    }
+  }, [isSidebarOpen]);
+
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.drag-handle')) {
+      setIsDragging(true);
+      setDragOffset({
+        x: e.clientX - dialogPosition.x,
+        y: e.clientY - dialogPosition.y
+      });
+    }
+  };
+
+  useEffect(() => {
+    adjustDialogPosition();
+  }, [isSidebarOpen, adjustDialogPosition]);
+
+
+  useEffect(() => {
+    const handleResize = () => {
+      adjustDialogPosition();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [adjustDialogPosition]);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isDragging && dialogRef.current) {
+        const dialogWidth = dialogRef.current.offsetWidth;
+        const dialogHeight = dialogRef.current.offsetHeight;
+        
+        const isDesktop = window.innerWidth >= 1024;
+        const isMobile = window.innerWidth < 1024;
+        
+        const rightSidebarWidth = (isDesktop || isSidebarOpen) ? 320 : 0;
+        
+        const mobileButtonArea = (isMobile && !isSidebarOpen) 
+          ? { width: 80, height: 80 } 
+          : { width: 0, height: 0 };
+        
+        const padding = 16;
+        
+        const maxX = window.innerWidth - rightSidebarWidth - dialogWidth - padding;
+        const maxY = window.innerHeight - dialogHeight - padding;
+        
+        let newX = e.clientX - dragOffset.x;
+        let newY = e.clientY - dragOffset.y;
+        
+        newX = Math.max(padding, Math.min(newX, maxX));
+        newY = Math.max(padding, Math.min(newY, maxY));
+        
+        if (isMobile && !isSidebarOpen) {
+          const dialogRight = newX + dialogWidth;
+          const buttonLeft = window.innerWidth - mobileButtonArea.width;
+          const buttonBottom = mobileButtonArea.height;
+          
+          if (dialogRight > buttonLeft && newY < buttonBottom) {
+            newX = Math.min(newX, buttonLeft - dialogWidth - padding);
+          }
+        }
+        
+        setDialogPosition({
+          x: newX,
+          y: newY
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset, isSidebarOpen]);
 
   useEffect(() => {
     if (currentUser?.antitheftKey) {
@@ -328,35 +433,55 @@ export function Dashboard() {
             />
             
             <div 
-              className="absolute top-6 left-6 z-10 p-4 rounded-lg shadow-lg max-w-sm"
-              style={{ backgroundColor: colours.primaryCard || 'white' }}
+              ref={dialogRef}
+              className="absolute z-30 rounded-lg shadow-lg max-w-sm select-none"
+              style={{ 
+                backgroundColor: colours.primaryCard || 'white',
+                left: `${dialogPosition.x}px`,
+                top: `${dialogPosition.y}px`,
+                cursor: isDragging ? 'grabbing' : 'default'
+              }}
+              onMouseDown={handleMouseDown}
             >
-              <h3 className="font-semibold mb-2" style={{ color: colours.textPrimary }}>
-                Approximate location
-              </h3>
-              <p className="text-sm mb-1" style={{ color: colours.textPrimary }}>
-                Latitude: {userLocation.lat.toFixed(6)}
-              </p>
-              <p className="text-sm mb-1" style={{ color: colours.textPrimary }}>
-                Longitude: {userLocation.lng.toFixed(6)}
-              </p>
-              <p className="text-xs mb-4" style={{ color: colours.textPrimary }}>
-                Obtained on {lastUpdated}
-              </p>
-              
-              <button
-                onClick={updateLocation}
-                disabled={isUpdatingLocation}
-                className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+              <div 
+                className="drag-handle flex items-center justify-between p-3 border-b rounded-t-lg"
+                style={{ 
+                  borderColor: colours.tertiaryColour || '#e5e7eb',
+                  cursor: 'grab',
+                  backgroundColor: colours.secondaryCard || '#f9fafb'
+                }}
               >
-                {isUpdatingLocation ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <MapPin className="w-4 h-4" />
-                )}
-                {isUpdatingLocation ? 'Requesting update...' : 'Update location'}
-              </button>
+                <h3 className="font-semibold flex items-center gap-2" style={{ color: colours.textPrimary }}>
+                  <Move className="w-4 h-4" />
+                  Approximate location
+                </h3>
+              </div>
+              
+              <div className="p-4">
+                <p className="text-sm mb-1" style={{ color: colours.textPrimary }}>
+                  Latitude: {userLocation.lat.toFixed(6)}
+                </p>
+                <p className="text-sm mb-1" style={{ color: colours.textPrimary }}>
+                  Longitude: {userLocation.lng.toFixed(6)}
+                </p>
+                <p className="text-xs mb-4" style={{ color: colours.textPrimary }}>
+                  Obtained on {lastUpdated}
+                </p>
+                
+                <button
+                  onClick={updateLocation}
+                  disabled={isUpdatingLocation}
+                  className="cursor-pointer flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ backgroundColor: colours.primaryColour || '#3B82F6' }}
+                >
+                  {isUpdatingLocation ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MapPin className="w-4 h-4" />
+                  )}
+                  {isUpdatingLocation ? 'Requesting update...' : 'Update location'}
+                </button>
+              </div>
             </div>
           </>
         ) : (
@@ -379,7 +504,7 @@ export function Dashboard() {
 
       {isSidebarOpen && (
         <div 
-          className="lg:hidden fixed inset-0 bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

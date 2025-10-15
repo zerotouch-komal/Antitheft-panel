@@ -4,6 +4,7 @@ import { authService } from '../services/AuthService';
 import { getCurrentStoredConfig } from '../utils/configLoader';
 import { Smartphone, Shield, X, MapPin, FileText, Menu, AlertTriangle, ChevronRight, LogOut, RefreshCw} from 'lucide-react';
 
+
 const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
   const location = useLocation();
   const [config] = useState(initialConfig || getCurrentStoredConfig());
@@ -25,6 +26,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
   
   const [errorMessage, setErrorMessage] = useState('');
 
+
   const [userLocation, setUserLocation] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [locationError, setLocationError] = useState(null);
@@ -32,13 +34,16 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
   
   const baseURL = import.meta.env.VITE_BASE_URL;
 
+
   useEffect(() => {
     localStorage.setItem('device_missing_mode', JSON.stringify(isMissingMode));
   }, [isMissingMode]);
 
+
   useEffect(() => {
     localStorage.setItem('device_report_minutes', JSON.stringify(reportMinutes));
   }, [reportMinutes]);
+
 
   useEffect(() => {
     const loadUserData = () => {
@@ -51,6 +56,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     
     loadUserData();
   }, []);
+
 
   const fetchUserLocation = async () => {
     try {
@@ -84,12 +90,14 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     }
   };
 
+
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     if (currentUser?.antitheftKey) {
       fetchUserLocation();
     }
   }, []);
+
 
   const colors = config?.theme?.colours || {};
   const sidebarBg = colors.sideBg && colors.sideBg !== '#fff' ? colors.sideBg : '#0f172a';
@@ -99,6 +107,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
   const textPrimary = colors.textPrimary === '#000' ? '#f8fafc' : colors.textPrimary || '#f8fafc';
   const textSecondary = colors.textSecondary === '#fff' ? '#94a3b8' : colors.textSecondary || '#94a3b8';
   const displayName = config?.displayName || "101 Antitheft";
+
 
   const handleMarkAsMissing = async () => {
     try {
@@ -113,12 +122,14 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
         throw new Error('Device token not available');
       }
 
+
       if (!isMissingMode) {
         const requestPayload = {
           token: deviceToken,
           action: "REPORT",
           minutes: reportMinutes.toString()
         };
+
 
         const commandResponse = await authService.post('/api/antitheft/send-device-command', requestPayload);
         console.log('Missing report started:', commandResponse);
@@ -129,6 +140,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
           token: deviceToken,
           action: "STOP_REPORT"
         };
+
 
         const commandResponse = await authService.post('/api/antitheft/send-device-command', requestPayload);
         console.log('Missing report stopped:', commandResponse);
@@ -148,8 +160,10 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     }
   };
 
+
   const topMenuItems = [];
   const deviceMenuItems = [];
+
 
   const bottomMenuItems = [
     {
@@ -164,15 +178,18 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     },
   ];
 
+
   const closeSidebar = () => {
     if (window.innerWidth < 1024) {
       setIsOpen(false);
     }
   };
 
+
   useEffect(() => {
     closeSidebar();
   }, [location]);
+
 
   const getDeviceDisplayName = () => {
     if (!deviceInfo) return 'Unknown Device';
@@ -180,6 +197,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     if (brand && model) return `${brand} ${model}`;
     return model || brand || 'Unknown Device';
   };
+
 
   const getDeviceStatus = () => {
     if (isLoadingLocation) {
@@ -190,6 +208,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
       };
     }
 
+
     if (locationError || !lastUpdated) {
       return {
         online: false,
@@ -197,6 +216,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
         lastTime: ''
       };
     }
+
 
     const lastUpdateDate = new Date(lastUpdated);
     const today = new Date();
@@ -214,12 +234,14 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
       hour12: false
     };
 
+
     return {
       online: userLocation ? true : false,
       lastSeen: isToday ? 'Today' : lastUpdateDate.toLocaleDateString('en-US', dateOptions),
       lastTime: lastUpdateDate.toLocaleTimeString('en-US', timeOptions)
     };
   };
+
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -234,7 +256,9 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     }
   };
 
+
   const deviceStatus = getDeviceStatus();
+
 
   return (
     <>
@@ -244,6 +268,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
           onClick={() => setIsOpen(false)}
         />
       )}
+
 
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -255,6 +280,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
       >
         <Menu className="w-6 h-6" />
       </button>
+
 
       <div 
         className={`
@@ -303,6 +329,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
           </div>
         </div>
 
+
         <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <nav className="px-4 py-6">
             <ul className="space-y-2">
@@ -344,6 +371,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
             </ul>
           </nav>
 
+
           <div className="px-4 mb-6">
             <div 
               className="rounded-2xl p-5 backdrop-blur-sm border border-white/10 shadow-lg"
@@ -374,6 +402,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                 </div>
               </div>
 
+
               <div className="space-y-1 mb-4">
                 <div className="text-xs font-medium" style={{ color: textSecondary }}>
                   Last Connection
@@ -397,6 +426,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                 )}
               </div>
 
+
               {!isMissingMode && (
                 <div className="mb-4">
                   <div className="text-xs font-medium mb-2" style={{ color: textSecondary }}>
@@ -418,6 +448,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                 </div>
               )}
 
+
               {errorMessage && (
                 <div className="mb-4 p-3 rounded-lg border border-red-500/30" style={{ backgroundColor: 'rgba(220, 38, 38, 0.1)' }}>
                   <div className="text-xs font-medium text-red-400 break-words">
@@ -425,6 +456,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                   </div>
                 </div>
               )}
+
 
               <button 
                 onClick={handleMarkAsMissing}
@@ -451,6 +483,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                 </span>
               </button>
 
+
               {isMissingMode && (
                 <div className="mb-4 p-3 rounded-lg border border-green-500/30" style={{ backgroundColor: 'rgba(5, 150, 105, 0.1)' }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -463,40 +496,50 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                 </div>
               )}
 
+
               <div className="space-y-1">
                 {deviceMenuItems.map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}
                     onClick={closeSidebar}
-                    className="group flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-white/5"
+                    className={({ isActive }) =>
+                      `group flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                        isActive ? 'bg-white/10' : 'hover:bg-white/5'
+                      }`
+                    }
                   >
-                    <div className="flex items-center space-x-3">
-                      <div style={{ color: textSecondary }} className="group-hover:text-white transition-colors">
-                        {item.icon}
-                      </div>
-                      <span className="text-sm font-medium" style={{ color: textSecondary }}>
-                        {item.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {item.badge && (
-                        <span 
-                          className="px-2 py-1 text-xs font-bold rounded-full"
-                          style={{ backgroundColor: primaryColor, color: 'white' }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                      {item.hasArrow && (
-                        <ChevronRight className="w-3 h-3" style={{ color: textSecondary }} />
-                      )}
-                    </div>
+                    {({ isActive }) => (
+                      <>
+                        <div className="flex items-center space-x-3">
+                          <div style={{ color: isActive ? 'white' : textSecondary }} className="transition-colors">
+                            {item.icon}
+                          </div>
+                          <span className="text-sm font-medium" style={{ color: isActive ? 'white' : textSecondary }}>
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {item.badge && (
+                            <span 
+                              className="px-2 py-1 text-xs font-bold rounded-full"
+                              style={{ backgroundColor: primaryColor, color: 'white' }}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                          {item.hasArrow && (
+                            <ChevronRight className="w-3 h-3" style={{ color: isActive ? 'white' : textSecondary }} />
+                          )}
+                        </div>
+                      </>
+                    )}
                   </NavLink>
                 ))}
               </div>
             </div>
           </div>
+
 
           <div className="px-4 pb-4">
             <nav>
@@ -506,8 +549,17 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
                     <NavLink
                       to={item.path}
                       onClick={closeSidebar}
-                      className="flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-white/5 hover:transform hover:scale-[1.01] font-medium"
-                      style={{ color: textSecondary }}
+                      className={({ isActive }) =>
+                        `flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
+                          isActive
+                            ? 'shadow-lg transform scale-[1.02]'
+                            : 'hover:bg-white/5 hover:transform hover:scale-[1.01]'
+                        }`
+                      }
+                      style={({ isActive }) => ({
+                        backgroundColor: isActive ? primaryColor : 'transparent',
+                        color: isActive ? 'white' : textSecondary
+                      })}
                     >
                       {item.icon}
                       <span>{item.name}</span>
@@ -519,6 +571,7 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
           </div>
         </div>
 
+
         <div className="flex-shrink-0 p-4 border-t border-white/10" style={{ backgroundColor: sidebarBg }}>
           <button
             onClick={handleLogout}
@@ -526,26 +579,26 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
             className="cursor-pointer w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all group"
             style={{ color: textSecondary }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#ef444420';
-              e.target.style.color = '#ef4444';
+              e.currentTarget.style.backgroundColor = '#ef444420';
+              e.currentTarget.style.color = '#ef4444';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = textSecondary;
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = textSecondary;
             }}
           >
             <LogOut
               size={20}
-              style={{ color: textSecondary }}
-              className="group-hover:!text-red-500"
+              style={{ color: 'inherit' }}
             />
             <span className="font-medium">
               {isLoggingOut ? 'Signing Out...' : 'Logout'}
             </span>
-            <ChevronRight size={16} className="ml-auto" style={{ color: textSecondary }} />
+            <ChevronRight size={16} className="ml-auto" style={{ color: 'inherit' }} />
           </button>
         </div>
       </div>
+
 
       <style jsx>{` 
         .flex-1::-webkit-scrollbar {
@@ -555,5 +608,6 @@ const Sidebar = ({ isOpen, setIsOpen, config: initialConfig }) => {
     </>
   );
 };
+
 
 export default Sidebar;
